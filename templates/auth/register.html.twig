@@ -1,0 +1,231 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Inscription - CloudServe{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .auth-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .auth-card {
+        max-width: 440px;
+        width: 100%;
+    }
+
+    .logo-container {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .logo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        border-radius: 20px;
+        margin-bottom: 1rem;
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+    }
+
+    .logo-text {
+        font-size: 2rem;
+        color: white;
+    }
+
+    .brand-name {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: white;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        margin-bottom: 0.5rem;
+    }
+
+    .brand-tagline {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    .divider {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin: 1.5rem 0;
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .divider span {
+        padding: 0 1rem;
+    }
+
+    .btn-full {
+        width: 100%;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .feature-list {
+        list-style: none;
+        margin: 1.5rem 0;
+        padding: 0;
+    }
+
+    .feature-list li {
+        padding: 0.5rem 0;
+        color: var(--gray-600);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .feature-list li::before {
+        content: '✓';
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background: var(--success);
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="logo-container">
+            <div class="logo">
+                <span class="logo-text">☁️</span>
+            </div>
+            <h1 class="brand-name">CloudServe</h1>
+            <p class="brand-tagline">Créez votre espace cloud gratuit</p>
+        </div>
+
+        <div class="card">
+            <h2 class="text-center" style="margin-bottom: 1rem; color: var(--gray-800);">Inscription</h2>
+
+            <ul class="feature-list">
+                <li>2 Go d'espace gratuit</li>
+                <li>Sécurité et confidentialité</li>
+                <li>Accès depuis n'importe où</li>
+            </ul>
+
+            <div id="error-message" class="alert alert-danger" style="display: none;">
+                <span>⚠️</span>
+                <span id="error-text"></span>
+            </div>
+
+            <div id="success-message" class="alert alert-success" style="display: none;">
+                <span>✓</span>
+                <span id="success-text"></span>
+            </div>
+
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="email">📧 Adresse email</label>
+                    <input type="email" id="email" name="email" class="form-control" placeholder="vous@exemple.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">🔒 Mot de passe</label>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="Minimum 6 caractères" required minlength="6">
+                </div>
+
+                <div class="form-group">
+                    <label for="password_confirm">🔒 Confirmer le mot de passe</label>
+                    <input type="password" id="password_confirm" name="password_confirm" class="form-control" placeholder="Confirmer votre mot de passe" required minlength="6">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">
+                    <span>Créer mon compte</span>
+                    <span>→</span>
+                </button>
+            </form>
+
+            <div class="divider">
+                <span>Déjà un compte ?</span>
+            </div>
+
+            <p class="text-center">
+                <a href="{{ path('app_login_page') }}" class="link">Se connecter</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('register-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const passwordConfirm = document.getElementById('password_confirm').value;
+    const errorDiv = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const successDiv = document.getElementById('success-message');
+    const successText = document.getElementById('success-text');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+
+    if (password !== passwordConfirm) {
+        errorText.textContent = 'Les mots de passe ne correspondent pas';
+        errorDiv.style.display = 'flex';
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span>Création en cours...</span>';
+
+    try {
+        const response = await fetch('/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            successText.textContent = 'Compte créé avec succès ! Redirection...';
+            successDiv.style.display = 'flex';
+            setTimeout(() => {
+                window.location.href = '/login-page';
+            }, 1500);
+        } else {
+            errorText.textContent = data.error || 'Erreur lors de l\'inscription';
+            errorDiv.style.display = 'flex';
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Créer mon compte</span><span>→</span>';
+        }
+    } catch (error) {
+        errorText.textContent = 'Impossible de se connecter au serveur';
+        errorDiv.style.display = 'flex';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Créer mon compte</span><span>→</span>';
+    }
+});
+</script>
+{% endblock %}

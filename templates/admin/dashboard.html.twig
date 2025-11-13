@@ -1,0 +1,667 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin Dashboard - CloudServe{% endblock %}
+
+{% block stylesheets %}
+<style>
+    body {
+        background: var(--gray-50);
+    }
+
+    .navbar {
+        background: white;
+        border-bottom: 1px solid var(--gray-200);
+        padding: 1rem 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .navbar-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    @media (min-width: 768px) {
+        .navbar-content {
+            padding: 0 2rem;
+        }
+    }
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: var(--gray-900);
+    }
+
+    .brand-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border-radius: 12px;
+        font-size: 1.25rem;
+    }
+
+    .admin-badge {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    @media (min-width: 640px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--gray-100);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-label {
+        color: var(--gray-600);
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--gray-900);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin: 0;
+    }
+
+    /* Table styles for desktop */
+    .users-table-container {
+        overflow-x: auto;
+        display: none;
+    }
+
+    @media (min-width: 1024px) {
+        .users-table-container {
+            display: block;
+        }
+    }
+
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .users-table thead {
+        background: var(--gray-50);
+    }
+
+    .users-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--gray-700);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid var(--gray-200);
+    }
+
+    .users-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--gray-100);
+        color: var(--gray-900);
+    }
+
+    .users-table tr:hover {
+        background: var(--gray-50);
+    }
+
+    /* Card styles for mobile */
+    .users-cards {
+        display: grid;
+        gap: 1rem;
+    }
+
+    @media (min-width: 1024px) {
+        .users-cards {
+            display: none;
+        }
+    }
+
+    .user-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        border: 1px solid var(--gray-100);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .user-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+        gap: 1rem;
+    }
+
+    .user-card-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .user-email {
+        font-weight: 600;
+        color: var(--gray-900);
+        margin-bottom: 0.25rem;
+        word-break: break-all;
+    }
+
+    .user-id {
+        font-size: 0.875rem;
+        color: var(--gray-500);
+    }
+
+    .user-card-details {
+        display: grid;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
+    }
+
+    .user-detail {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        background: var(--gray-50);
+        border-radius: 8px;
+    }
+
+    .user-detail-label {
+        color: var(--gray-600);
+        font-weight: 600;
+    }
+
+    .user-detail-value {
+        color: var(--gray-900);
+        font-weight: 500;
+    }
+
+    .user-card-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .badge-admin {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+    }
+
+    .badge-user {
+        background: var(--gray-200);
+        color: var(--gray-700);
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, var(--warning), #d97706);
+        color: white;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-warning:hover {
+        box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+        transform: translateY(-2px);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--gray-400);
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+        color: var(--gray-600);
+        font-size: 1.125rem;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<nav class="navbar">
+    <div class="navbar-content">
+        <div class="brand">
+            <div class="brand-logo">👑</div>
+            <span>CloudServe<span class="admin-badge">ADMIN</span></span>
+        </div>
+        <div class="nav-actions">
+            <a href="/dashboard" class="btn btn-primary btn-sm">📊 Dashboard</a>
+            <button onclick="logout()" class="btn btn-danger btn-sm">Déconnexion</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-label">Total Utilisateurs</div>
+            <div class="stat-value" id="total-users">{{ users|length }}</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-label">Utilisateurs Actifs</div>
+            <div class="stat-value" id="active-users">
+                {% set activeCount = 0 %}
+                {% for user in users %}
+                    {% if user.active %}
+                        {% set activeCount = activeCount + 1 %}
+                    {% endif %}
+                {% endfor %}
+                {{ activeCount }}
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-label">Utilisateurs Suspendus</div>
+            <div class="stat-value" id="suspended-users">
+                {{ users|length - activeCount }}
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">📁</div>
+            <div class="stat-label">Total Fichiers</div>
+            <div class="stat-value" id="total-files">
+                {% set totalFiles = 0 %}
+                {% for user in users %}
+                    {% set totalFiles = totalFiles + user.filesCount %}
+                {% endfor %}
+                {{ totalFiles }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="section-header">
+            <h2 class="section-title">👥 Gestion des utilisateurs</h2>
+        </div>
+
+        <div id="message" class="alert" style="display: none;"></div>
+
+        {% if users|length == 0 %}
+            <div class="empty-state">
+                <div class="empty-state-icon">👤</div>
+                <div class="empty-state-text">Aucun utilisateur</div>
+            </div>
+        {% else %}
+            {# Desktop table view #}
+            <div class="users-table-container">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Email</th>
+                            <th>Rôle</th>
+                            <th>Inscription</th>
+                            <th>Fichiers</th>
+                            <th>Espace utilisé</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr id="user-row-{{ user.id }}">
+                            <td><strong>#{{ user.id }}</strong></td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if 'ROLE_ADMIN' in user.roles %}
+                                    <span class="badge badge-admin">👑 ADMIN</span>
+                                {% else %}
+                                    <span class="badge badge-user">👤 USER</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.createdAt|date('d/m/Y') }}</td>
+                            <td>{{ user.filesCount }}</td>
+                            <td>
+                                <strong>{{ (user.usedSpace / 1024 / 1024)|number_format(2) }} MB</strong>
+                                <span style="color: var(--gray-500);">/ {{ (user.quota / 1024 / 1024 / 1024)|number_format(2) }} GB</span>
+                            </td>
+                            <td>
+                                {% if user.active %}
+                                    <span class="badge badge-success">✓ Actif</span>
+                                {% else %}
+                                    <span class="badge badge-danger">✗ Suspendu</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if 'ROLE_ADMIN' not in user.roles %}
+                                    <div class="action-buttons">
+                                        <button onclick="changeQuota({{ user.id }})" class="btn btn-primary btn-sm">
+                                            💾 Quota
+                                        </button>
+                                        {% if user.active %}
+                                            <button onclick="suspendUser({{ user.id }})" class="btn btn-warning btn-sm">
+                                                ⏸️ Suspendre
+                                            </button>
+                                        {% else %}
+                                            <button onclick="activateUser({{ user.id }})" class="btn btn-success btn-sm">
+                                                ▶️ Activer
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span style="color: var(--gray-400); font-size: 0.875rem;">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# Mobile card view #}
+            <div class="users-cards">
+                {% for user in users %}
+                <div class="user-card" id="user-card-{{ user.id }}">
+                    <div class="user-card-header">
+                        <div class="user-card-info">
+                            <div class="user-email">{{ user.email }}</div>
+                            <div class="user-id">ID: #{{ user.id }}</div>
+                        </div>
+                        <div>
+                            {% if 'ROLE_ADMIN' in user.roles %}
+                                <span class="badge badge-admin">👑 ADMIN</span>
+                            {% else %}
+                                <span class="badge badge-user">👤 USER</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="user-card-details">
+                        <div class="user-detail">
+                            <span class="user-detail-label">📅 Inscription</span>
+                            <span class="user-detail-value">{{ user.createdAt|date('d/m/Y') }}</span>
+                        </div>
+                        <div class="user-detail">
+                            <span class="user-detail-label">📁 Fichiers</span>
+                            <span class="user-detail-value">{{ user.filesCount }}</span>
+                        </div>
+                        <div class="user-detail">
+                            <span class="user-detail-label">💾 Espace</span>
+                            <span class="user-detail-value">
+                                {{ (user.usedSpace / 1024 / 1024)|number_format(2) }} MB / {{ (user.quota / 1024 / 1024 / 1024)|number_format(2) }} GB
+                            </span>
+                        </div>
+                        <div class="user-detail">
+                            <span class="user-detail-label">📊 Statut</span>
+                            <span class="user-detail-value">
+                                {% if user.active %}
+                                    <span class="badge badge-success">✓ Actif</span>
+                                {% else %}
+                                    <span class="badge badge-danger">✗ Suspendu</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if 'ROLE_ADMIN' not in user.roles %}
+                        <div class="user-card-actions">
+                            <button onclick="changeQuota({{ user.id }})" class="btn btn-primary btn-sm">
+                                💾 Quota
+                            </button>
+                            {% if user.active %}
+                                <button onclick="suspendUser({{ user.id }})" class="btn btn-warning btn-sm">
+                                    ⏸️ Suspendre
+                                </button>
+                            {% else %}
+                                <button onclick="activateUser({{ user.id }})" class="btn btn-success btn-sm">
+                                    ▶️ Activer
+                                </button>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('auth_token');
+
+if (!token) {
+    window.location.href = '/login-page';
+}
+
+// Vérifier que l'utilisateur a le rôle ADMIN
+async function checkAdminRole() {
+    try {
+        const response = await fetch('/me', {
+            headers: {
+                'X-Auth-Token': token
+            }
+        });
+
+        if (!response.ok) {
+            window.location.href = '/login-page';
+            return;
+        }
+
+        const data = await response.json();
+        if (!data.roles.includes('ROLE_ADMIN')) {
+            alert('⚠️ Accès refusé : vous devez être administrateur');
+            window.location.href = '/dashboard';
+        }
+    } catch (error) {
+        window.location.href = '/login-page';
+    }
+}
+
+checkAdminRole();
+
+function logout() {
+    localStorage.removeItem('auth_token');
+    window.location.href = '/login-page';
+}
+
+function showMessage(message, isError = false) {
+    const messageDiv = document.getElementById('message');
+    messageDiv.textContent = (isError ? '⚠️ ' : '✓ ') + message;
+    messageDiv.className = 'alert ' + (isError ? 'alert-danger' : 'alert-success');
+    messageDiv.style.display = 'flex';
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 3000);
+}
+
+async function changeQuota(userId) {
+    const newQuota = prompt('💾 Nouveau quota (ex: 5G, 500M, 1024K):');
+    if (!newQuota) return;
+
+    try {
+        const response = await fetch(`/admin/users/${userId}/quota`, {
+            method: 'PATCH',
+            headers: {
+                'X-Auth-Token': token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ quota: newQuota })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage('Quota modifié avec succès');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showMessage(data.error || 'Erreur lors de la modification', true);
+        }
+    } catch (error) {
+        showMessage('Erreur de connexion au serveur', true);
+    }
+}
+
+async function suspendUser(userId) {
+    if (!confirm('⚠️ Êtes-vous sûr de vouloir suspendre cet utilisateur ?')) return;
+
+    try {
+        const response = await fetch(`/admin/users/${userId}/suspend`, {
+            method: 'PATCH',
+            headers: {
+                'X-Auth-Token': token
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage('Utilisateur suspendu avec succès');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showMessage(data.error || 'Erreur lors de la suspension', true);
+        }
+    } catch (error) {
+        showMessage('Erreur de connexion au serveur', true);
+    }
+}
+
+async function activateUser(userId) {
+    if (!confirm('✓ Activer cet utilisateur ?')) return;
+
+    try {
+        const response = await fetch(`/admin/users/${userId}/activate`, {
+            method: 'PATCH',
+            headers: {
+                'X-Auth-Token': token
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage('Utilisateur activé avec succès');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showMessage(data.error || 'Erreur lors de l\'activation', true);
+        }
+    } catch (error) {
+        showMessage('Erreur de connexion au serveur', true);
+    }
+}
+</script>
+{% endblock %}
