@@ -809,7 +809,7 @@
                 <button class="btn btn-primary btn-sm" onclick="document.getElementById('file-input').click()">
                     📁 Choisir fichiers
                 </button>
-                <button class="btn btn-success btn-sm" id="sync-photos-btn" onclick="syncPhotosFromDevice()" style="display: none;">
+                <button class="btn btn-success btn-sm" id="sync-photos-btn" onclick="syncPhotosFromDevice()">
                     📸 Sync Photos
                 </button>
             </div>
@@ -2032,7 +2032,7 @@ function renderFilesList() {
 
     const html = filteredUserFiles.map(file => {
         const icon = file.isFolder ? '📁' : getFileIcon(file);
-        const size = file.isFolder ? '' : formatSize(file.size);
+        const size = formatSize(file.size);
 
         return `
             <div class="files-manager-item" onclick="navigateToFileInManager(${file.id}, ${file.isFolder})" title="${file.path}">
@@ -2129,13 +2129,6 @@ function isMobileDevice() {
     return isMobile || isSmallScreen;
 }
 
-if (isMobileDevice()) {
-    const syncBtn = document.getElementById('sync-photos-btn');
-    if (syncBtn) {
-        syncBtn.style.display = 'inline-flex';
-    }
-}
-
 // Synchroniser les photos du téléphone
 async function syncPhotosFromDevice() {
     // Créer un input caché pour sélectionner le dossier
@@ -2176,13 +2169,13 @@ async function syncPhotosFromDevice() {
     input.click();
 }
 
-// Filtrer les doublons automatiquement (pour la synchro photo)
-async function filterDuplicates(files) {
+// VERSION OPTIMISÉE : Filtrer les doublons avec batch size augmenté
+async function filterDuplicatesOptimized(files) {
     const uniqueFiles = [];
     let duplicateCount = 0;
 
-    // Traiter les fichiers par batch de 5 pour optimiser
-    const batchSize = 5;
+    // Traiter les fichiers par batch de 10 (doublé pour plus de vitesse)
+    const batchSize = 10;
     const fileArray = Array.from(files);
 
     for (let i = 0; i < fileArray.length; i += batchSize) {
@@ -2221,19 +2214,32 @@ async function filterDuplicates(files) {
     return { uniqueFiles, duplicateCount };
 }
 
-// Synchroniser les photos vers le cloud
+// Synchroniser les photos vers le cloud (VERSION OPTIMISÉE)
 async function syncPhotosToCloud(imageFiles) {
     // Créer une interface de progression
     const progressOverlay = createPhotoSyncProgress();
 
     try {
-        // 1. Trouver ou créer le dossier "Images"
-        updateSyncProgress(progressOverlay, 'Préparation...', 5);
-        const imagesFolder = await findOrCreateImagesFolder();
+        // 1. Charger tous les fichiers UNE SEULE FOIS pour réutiliser
+        updateSyncProgress(progressOverlay, 'Préparation...', 3);
+        const response = await fetch('/files/all-with-paths', {
+            headers: { 'X-Auth-Token': token }
+        });
 
-        // 2. Détecter les doublons
-        updateSyncProgress(progressOverlay, 'Détection des doublons...', 8);
-        const { uniqueFiles, duplicateCount } = await filterDuplicates(imageFiles);
+        if (!response.ok) {
+            throw new Error('Impossible de charger les fichiers');
+        }
+
+        const data = await response.json();
+        const allFiles = data.files || [];
+
+        // 2. Trouver ou créer le dossier "Images" (réutiliser allFiles)
+        updateSyncProgress(progressOverlay, 'Vérification du dossier Images...', 6);
+        const imagesFolder = await findOrCreateImagesFolderOptimized(allFiles);
+
+        // 3. Détecter les doublons (avec batch size augmenté)
+        updateSyncProgress(progressOverlay, 'Détection des doublons...', 10);
+        const { uniqueFiles, duplicateCount } = await filterDuplicatesOptimized(imageFiles);
         console.log(`${uniqueFiles.length} fichiers uniques, ${duplicateCount} doublons détectés`);
 
         if (uniqueFiles.length === 0) {
@@ -2242,23 +2248,23 @@ async function syncPhotosToCloud(imageFiles) {
             return;
         }
 
-        // 3. Analyser la structure des dossiers
-        updateSyncProgress(progressOverlay, 'Analyse de la structure...', 12);
+        // 4. Analyser la structure des dossiers
+        updateSyncProgress(progressOverlay, 'Analyse de la structure...', 15);
         const folderStructure = analyzeFolderStructure(uniqueFiles);
         console.log('Folder structure detected:', folderStructure);
 
-        // 4. Créer les sous-dossiers si nécessaire
-        updateSyncProgress(progressOverlay, 'Création des dossiers...', 18);
-        const folderMap = await createFolderStructure(imagesFolder.id, folderStructure);
+        // 5. Créer les sous-dossiers si nécessaire (réutiliser allFiles)
+        updateSyncProgress(progressOverlay, 'Création des dossiers...', 20);
+        const folderMap = await createFolderStructureOptimized(imagesFolder.id, folderStructure, allFiles);
         console.log('Final folder map:', Array.from(folderMap.entries()));
 
-        // 5. Uploader les photos par batch
+        // 6. Uploader les photos par batch (taille augmentée)
         let uploaded = 0;
-        const batchSize = 5; // Uploader 5 photos à la fois
+        const batchSize = 15; // Augmenté de 5 à 15 pour plus de vitesse
 
         for (let i = 0; i < uniqueFiles.length; i += batchSize) {
             const batch = uniqueFiles.slice(i, i + batchSize);
-            const progress = 15 + ((uploaded / uniqueFiles.length) * 80);
+            const progress = 20 + ((uploaded / uniqueFiles.length) * 75);
 
             updateSyncProgress(
                 progressOverlay,
@@ -2271,7 +2277,7 @@ async function syncPhotosToCloud(imageFiles) {
             uploaded += batch.length;
         }
 
-        // 5. Terminé !
+        // 7. Terminé !
         updateSyncProgress(progressOverlay, 'Synchronisation terminée !', 100);
 
         setTimeout(() => {
@@ -2295,19 +2301,8 @@ async function syncPhotosToCloud(imageFiles) {
     }
 }
 
-// Trouver ou créer le dossier "Images"
-async function findOrCreateImagesFolder() {
-    // Charger tous les fichiers de l'utilisateur
-    const response = await fetch('/files/all-with-paths', {
-        headers: { 'X-Auth-Token': token }
-    });
-
-    if (!response.ok) {
-        throw new Error('Impossible de charger les fichiers');
-    }
-
-    const data = await response.json();
-    const allFiles = data.files || [];
+// VERSION OPTIMISÉE : Trouver ou créer le dossier "Images" (réutilise allFiles)
+async function findOrCreateImagesFolderOptimized(allFiles) {
 
     console.log('Looking for Images folder in:', allFiles.filter(f => f.isFolder).map(f => ({
         id: f.id,
@@ -2382,18 +2377,12 @@ function analyzeFolderStructure(files) {
     return result;
 }
 
-// Créer la structure de dossiers
-async function createFolderStructure(parentId, folderPaths) {
+// VERSION OPTIMISÉE : Créer la structure de dossiers (réutilise allFiles)
+async function createFolderStructureOptimized(parentId, folderPaths, allFiles) {
     const folderMap = new Map();
     folderMap.set('', parentId); // La racine est le dossier Images
 
-    // Charger les dossiers existants
-    const response = await fetch('/files/all-with-paths', {
-        headers: { 'X-Auth-Token': token }
-    });
-
-    const data = await response.json();
-    const allFiles = data.files || [];
+    // Utiliser les dossiers existants déjà chargés
     const existingFolders = allFiles.filter(f => f.isFolder);
 
     // Créer les dossiers manquants
@@ -2405,7 +2394,13 @@ async function createFolderStructure(parentId, folderPaths) {
             const parentPath = currentPath;
             currentPath = currentPath ? `${currentPath}/${part}` : part;
 
-            // Vérifier si le dossier existe déjà
+            // Vérifier si le dossier a déjà été créé dans cette session
+            if (folderMap.has(currentPath)) {
+                console.log('Folder already in map:', currentPath, 'ID:', folderMap.get(currentPath));
+                continue;
+            }
+
+            // Vérifier si le dossier existe déjà en base de données
             const fullPath = `Images/${currentPath}`;
             const existing = existingFolders.find(f => {
                 const normalizedPath = f.path.toLowerCase().trim();
@@ -2414,10 +2409,13 @@ async function createFolderStructure(parentId, folderPaths) {
             });
 
             if (existing) {
+                console.log('Found existing folder:', currentPath, 'ID:', existing.id);
                 folderMap.set(currentPath, existing.id);
             } else {
                 // Créer le dossier
                 const parentFolderId = folderMap.get(parentPath);
+                console.log('Creating folder:', part, 'Parent ID:', parentFolderId, 'Full path:', currentPath);
+
                 const createResponse = await fetch('/files/folder', {
                     method: 'POST',
                     headers: {
@@ -2433,8 +2431,15 @@ async function createFolderStructure(parentId, folderPaths) {
                 if (createResponse.ok) {
                     const result = await createResponse.json();
                     const newFolder = result.folder;
-                    console.log('Created folder:', part, 'ID:', newFolder.id);
+                    console.log('Created folder:', part, 'ID:', newFolder.id, 'Path:', currentPath);
                     folderMap.set(currentPath, newFolder.id);
+
+                    // Ajouter le nouveau dossier à la liste des existants pour éviter de le recréer
+                    existingFolders.push({
+                        id: newFolder.id,
+                        path: fullPath,
+                        isFolder: true
+                    });
                 } else {
                     console.error('Erreur création dossier:', part);
                 }

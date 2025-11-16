@@ -504,10 +504,13 @@ class FileController extends AbstractController
             : $this->fileRepository->findBy(['user' => $user, 'parent' => null]);
 
         $filesData = array_map(function (File $file) {
+            // Calculer la taille réelle pour les dossiers
+            $size = $file->isFolder() ? $this->calculateFolderSize($file) : $file->getSize();
+
             return [
                 'id' => $file->getId(),
                 'filename' => $file->getFilename(),
-                'size' => $file->getSize(),
+                'size' => $size,
                 'mimeType' => $file->getMimeType(),
                 'type' => $file->getFileType(),
                 'isFolder' => $file->isFolder(),
@@ -602,6 +605,8 @@ class FileController extends AbstractController
             foreach ($children as $child) {
                 $totalSize += $this->deleteFileRecursive($child);
             }
+            // Flush après avoir supprimé tous les enfants pour éviter les conflits de contraintes
+            $this->entityManager->flush();
         } else {
             // C'est un fichier, supprimer du disque
             if ($file->getStoredName()) {
@@ -616,6 +621,30 @@ class FileController extends AbstractController
 
         // Supprimer l'entité de la base de données
         $this->entityManager->remove($file);
+
+        return $totalSize;
+    }
+
+    /**
+     * Calcule la taille totale d'un dossier (récursivement)
+     * @return int Taille totale en octets
+     */
+    private function calculateFolderSize(\App\Entity\File $folder): int
+    {
+        $totalSize = 0;
+
+        // Récupérer tous les fichiers enfants
+        $children = $this->fileRepository->findBy(['parent' => $folder]);
+
+        foreach ($children as $child) {
+            if ($child->isFolder()) {
+                // Récursion pour les sous-dossiers
+                $totalSize += $this->calculateFolderSize($child);
+            } else {
+                // Ajouter la taille du fichier
+                $totalSize += (int)$child->getSize();
+            }
+        }
 
         return $totalSize;
     }
