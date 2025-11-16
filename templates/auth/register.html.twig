@@ -139,7 +139,7 @@
                 <span id="success-text"></span>
             </div>
 
-            <form id="register-form">
+            <form id="register-form" action="/register" method="post">
                 <div class="form-group">
                     <label for="email">📧 Adresse email</label>
                     <input type="email" id="email" name="email" class="form-control" placeholder="vous@exemple.com" autocomplete="username" required>
@@ -209,6 +209,20 @@ document.getElementById('register-form').addEventListener('submit', async functi
         const data = await response.json();
 
         if (response.ok) {
+            // Proposer à Chrome d'enregistrer le mot de passe
+            if (window.PasswordCredential) {
+                try {
+                    const credential = new PasswordCredential({
+                        id: email,
+                        password: password,
+                        name: email
+                    });
+                    await navigator.credentials.store(credential);
+                } catch (e) {
+                    // Ignorer les erreurs de l'API Credential Management
+                }
+            }
+
             successText.textContent = 'Compte créé avec succès ! Redirection...';
             successDiv.style.display = 'flex';
             setTimeout(() => {
