@@ -34,3 +34,11 @@ services:
     App\Service\ThumbnailService:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    App\Command\ProcessUploadQueueCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Controller\FileController:
+        arguments:
+            $projectDir: '%kernel.project_dir%'

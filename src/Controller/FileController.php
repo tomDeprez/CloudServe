@@ -3,7 +3,9 @@
 namespace App\Controller;
 
 use App\Entity\File;
+use App\Entity\UploadQueue;
 use App\Repository\FileRepository;
+use App\Repository\UploadQueueRepository;
 use App\Security\FileVoter;
 use App\Service\FileStorageService;
 use App\Service\RawFileUploadService;
@@ -32,6 +34,8 @@ class FileController extends AbstractController
         private VideoCompressionService $videoCompressionService,
         private AudioCompressionService $audioCompressionService,
         private FileRepository $fileRepository,
+        private UploadQueueRepository $uploadQueueRepository,
+        private string $projectDir,
     ) {
     }
 
@@ -894,5 +898,190 @@ class FileController extends AbstractController
         );
 
         return $response;
+    }
+
+    #[Route('/queue-upload', name: 'app_file_queue_upload', methods: ['POST'])]
+    public function queueUpload(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        if (!$user->isActive()) {
+            return new JsonResponse(['error' => 'Account suspended'], Response::HTTP_FORBIDDEN);
+        }
+
+        if (empty($_FILES['files'])) {
+            return new JsonResponse(['error' => 'No files uploaded'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $parentId = $request->request->get('parent_id');
+        $parent = null;
+
+        if ($parentId) {
+            $parent = $this->fileRepository->find($parentId);
+            if (!$parent || !$parent->isFolder() || $parent->getUser()->getId() !== $user->getId()) {
+                return new JsonResponse(['error' => 'Invalid parent folder'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        $filesData = $this->normalizeFilesArray($_FILES['files']);
+        $queuedItems = [];
+        $errors = [];
+        $totalSize = 0;
+
+        // Calculer la taille totale
+        foreach ($filesData as $fileData) {
+            if ($fileData['error'] === UPLOAD_ERR_OK) {
+                $totalSize += $fileData['size'];
+            }
+        }
+
+        // Vérifier le quota
+        if (!$user->hasAvailableSpace($totalSize)) {
+            return new JsonResponse([
+                'error' => 'Quota exceeded',
+                'quota' => $user->getQuota(),
+                'usedSpace' => $user->getUsedSpace(),
+                'requiredSpace' => $totalSize,
+            ], Response::HTTP_INSUFFICIENT_STORAGE);
+        }
+
+        $tempDir = $this->projectDir . '/var/tmp/uploads';
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0777, true);
+        }
+
+        // Ajouter chaque fichier à la queue
+        foreach ($filesData as $fileData) {
+            if ($fileData['error'] !== UPLOAD_ERR_OK) {
+                $errors[] = [
+                    'filename' => $fileData['name'],
+                    'error' => 'Upload error code: ' . $fileData['error']
+                ];
+                continue;
+            }
+
+            try {
+                // Déplacer vers un fichier temporaire
+                $tempFileName = uniqid('upload_', true) . '_' . basename($fileData['name']);
+                $tempPath = $tempDir . '/' . $tempFileName;
+
+                if (!move_uploaded_file($fileData['tmp_name'], $tempPath)) {
+                    throw new \RuntimeException('Failed to move uploaded file');
+                }
+
+                // Calculer le hash
+                $hash = hash_file('sha256', $tempPath);
+
+                // Créer l'entrée dans la queue
+                $queueItem = new UploadQueue();
+                $queueItem->setUser($user);
+                $queueItem->setFilename($fileData['name']);
+                $queueItem->setTempPath($tempPath);
+                $queueItem->setMimeType($fileData['type']);
+                $queueItem->setSize((string) $fileData['size']);
+                $queueItem->setHash($hash);
+                $queueItem->setParentFolder($parent);
+                $queueItem->setStatus('pending');
+
+                $this->entityManager->persist($queueItem);
+                $this->entityManager->flush();
+
+                $queuedItems[] = [
+                    'id' => $queueItem->getId(),
+                    'filename' => $queueItem->getFilename(),
+                    'size' => $queueItem->getSize(),
+                    'status' => 'queued',
+                ];
+
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'filename' => $fileData['name'],
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'queued' => count($queuedItems),
+            'items' => $queuedItems,
+            'errors' => $errors,
+        ]);
+    }
+
+    #[Route('/upload-status', name: 'app_file_upload_status', methods: ['GET'])]
+    public function uploadStatus(Request $request): Response
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Configuration SSE
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+        header('X-Accel-Buffering: no'); // Nginx buffering fix
+
+        // Désactiver le buffering PHP
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        set_time_limit(0);
+        ignore_user_abort(true);
+
+        $lastCheck = new \DateTimeImmutable('-1 hour');
+        $maxDuration = 300; // 5 minutes max
+        $startTime = time();
+
+        while (time() - $startTime < $maxDuration) {
+            // Récupérer les uploads de l'utilisateur
+            $uploads = $this->uploadQueueRepository->findPendingByUser($user);
+
+            $data = [
+                'uploads' => [],
+                'stats' => $this->uploadQueueRepository->getStatsByUser($user),
+                'timestamp' => time(),
+            ];
+
+            foreach ($uploads as $upload) {
+                $data['uploads'][] = [
+                    'id' => $upload->getId(),
+                    'filename' => $upload->getFilename(),
+                    'size' => $upload->getSize(),
+                    'status' => $upload->getStatus(),
+                    'progress' => $upload->getProgress(),
+                    'error' => $upload->getErrorMessage(),
+                    'fileId' => $upload->getResultFile()?->getId(),
+                ];
+            }
+
+            // Envoyer les données
+            echo "data: " . json_encode($data) . "\n\n";
+
+            if (ob_get_level()) {
+                ob_flush();
+            }
+            flush();
+
+            // Si plus aucun upload en cours, arrêter
+            if (empty($uploads)) {
+                break;
+            }
+
+            // Attendre avant la prochaine vérification
+            sleep(1);
+
+            // Recharger l'entity manager pour éviter les problèmes de cache
+            $this->entityManager->clear();
+        }
+
+        return new Response();
     }
 }
