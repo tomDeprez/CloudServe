@@ -69,7 +69,7 @@ class FileController extends AbstractController
 
         $uploadedFiles = [];
         $errors = [];
-        $totalSize = 0;
+        $totalSizeBeforeCompression = 0;
 
         // Normaliser $_FILES pour gérer les uploads multiples
         $filesData = $this->normalizeFilesArray($_FILES['files']);
@@ -83,16 +83,16 @@ class FileController extends AbstractController
                 continue;
             }
 
-            $totalSize += $fileData['size'];
+            $totalSizeBeforeCompression += $fileData['size'];
         }
 
-        // Vérifier le quota pour tous les fichiers
-        if (!$user->hasAvailableSpace($totalSize)) {
+        // Vérifier le quota pour tous les fichiers (avec taille avant compression pour être sûr)
+        if (!$user->hasAvailableSpace($totalSizeBeforeCompression)) {
             return new JsonResponse([
                 'error' => 'Quota exceeded',
                 'quota' => $user->getQuota(),
                 'usedSpace' => $user->getUsedSpace(),
-                'requiredSpace' => $totalSize,
+                'requiredSpace' => $totalSizeBeforeCompression,
             ], Response::HTTP_INSUFFICIENT_STORAGE);
         }
 
@@ -106,46 +106,28 @@ class FileController extends AbstractController
                 $uploadResult = $this->rawFileUpload->store($fileData);
 
                 $uploadPath = $this->getParameter('kernel.project_dir') . '/public/uploads/' . $uploadResult['storedName'];
+                $fileSize = $uploadResult['size'];
 
-                // Compresser l'image si applicable
+                // Compresser SEULEMENT les images (rapide)
+                // Vidéos et audio : compression désactivée pour éviter les timeouts
                 if ($this->imageCompressionService->isCompressibleImage($uploadResult['mimeType'])) {
-                    $compressed = $this->imageCompressionService->compressImage(
-                        $uploadPath,
-                        $uploadPath, // Écraser le fichier original
-                        $uploadResult['mimeType']
-                    );
+                    // Compresser seulement si < 50MB pour éviter les timeouts
+                    if ($fileSize < 50 * 1024 * 1024) {
+                        $compressed = $this->imageCompressionService->compressImage(
+                            $uploadPath,
+                            $uploadPath, // Écraser le fichier original
+                            $uploadResult['mimeType']
+                        );
 
-                    // Mettre à jour la taille si compression réussie
-                    if ($compressed && file_exists($uploadPath)) {
-                        $uploadResult['size'] = filesize($uploadPath);
+                        // Mettre à jour la taille si compression réussie
+                        if ($compressed && file_exists($uploadPath)) {
+                            $uploadResult['size'] = filesize($uploadPath);
+                        }
                     }
                 }
 
-                // Compresser la vidéo si applicable
-                if ($this->videoCompressionService->isCompressibleVideo($uploadResult['mimeType'])) {
-                    $tempPath = $uploadPath . '.temp.mp4';
-                    $compressed = $this->videoCompressionService->compressVideo($uploadPath, $tempPath);
-
-                    if ($compressed && file_exists($tempPath)) {
-                        // Remplacer le fichier original par la version compressée
-                        unlink($uploadPath);
-                        rename($tempPath, $uploadPath);
-                        $uploadResult['size'] = filesize($uploadPath);
-                    }
-                }
-
-                // Compresser l'audio si applicable
-                if ($this->audioCompressionService->isCompressibleAudio($uploadResult['mimeType'])) {
-                    $tempPath = $uploadPath . '.temp.m4a';
-                    $compressed = $this->audioCompressionService->compressAudio($uploadPath, $tempPath);
-
-                    if ($compressed && file_exists($tempPath)) {
-                        // Remplacer le fichier original par la version compressée
-                        unlink($uploadPath);
-                        rename($tempPath, $uploadPath);
-                        $uploadResult['size'] = filesize($uploadPath);
-                    }
-                }
+                // DÉSACTIVÉ : Compression vidéo/audio (trop lent, bloque les requêtes)
+                // Si besoin, utiliser une queue async avec un worker PHP
 
                 $file = new File();
                 $file->setFilename($uploadResult['originalName']);
@@ -197,8 +179,14 @@ class FileController extends AbstractController
             }
         }
 
-        // Mettre à jour l'espace utilisé
-        $user->setUsedSpace((string)((int)$user->getUsedSpace() + $totalSize - array_sum(array_column($errors, 'size', 0))));
+        // Calculer la taille réelle utilisée APRÈS compression
+        $actualSizeUsed = 0;
+        foreach ($uploadedFiles as $uploadedFile) {
+            $actualSizeUsed += (int)$uploadedFile['size'];
+        }
+
+        // Mettre à jour l'espace utilisé avec la taille RÉELLE (après compression)
+        $user->setUsedSpace((string)((int)$user->getUsedSpace() + $actualSizeUsed));
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
