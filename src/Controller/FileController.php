@@ -129,6 +129,27 @@ class FileController extends AbstractController
                 // DÉSACTIVÉ : Compression vidéo/audio (trop lent, bloque les requêtes)
                 // Si besoin, utiliser une queue async avec un worker PHP
 
+                // PROTECTION : Vérifier si un fichier avec le même hash existe déjà
+                $existingFile = $this->fileRepository->findOneBy([
+                    'user' => $user,
+                    'hash' => $uploadResult['hash']
+                ]);
+
+                if ($existingFile) {
+                    // Fichier déjà existant, ne pas le dupliquer
+                    // Supprimer le fichier temporaire uploadé
+                    if (file_exists($uploadPath)) {
+                        unlink($uploadPath);
+                    }
+
+                    $errors[] = [
+                        'filename' => $uploadResult['originalName'],
+                        'error' => 'Ce fichier existe déjà',
+                        'existing_file' => $existingFile->getFilename()
+                    ];
+                    continue;
+                }
+
                 $file = new File();
                 $file->setFilename($uploadResult['originalName']);
                 $file->setStoredName($uploadResult['storedName']);
@@ -660,6 +681,24 @@ class FileController extends AbstractController
             if (!$parent || !$parent->isFolder() || $parent->getUser()->getId() !== $user->getId()) {
                 return new JsonResponse(['error' => 'Invalid parent folder'], Response::HTTP_BAD_REQUEST);
             }
+        }
+
+        // PROTECTION : Vérifier qu'un dossier avec le même nom n'existe pas déjà au même endroit
+        $existingFolder = $this->fileRepository->findOneBy([
+            'user' => $user,
+            'parent' => $parent,
+            'filename' => trim($folderName),
+            'type' => 'folder'
+        ]);
+
+        if ($existingFolder) {
+            return new JsonResponse([
+                'error' => 'Un dossier avec ce nom existe déjà à cet emplacement',
+                'existing_folder' => [
+                    'id' => $existingFolder->getId(),
+                    'filename' => $existingFolder->getFilename()
+                ]
+            ], Response::HTTP_CONFLICT);
         }
 
         $folder = new File();

@@ -2550,8 +2550,21 @@ async function createFolderStructureOptimized(parentId, folderPaths, allFiles) {
                         path: fullPath,
                         isFolder: true
                     });
+                } else if (createResponse.status === 409) {
+                    // Dossier existe déjà (retourné par le backend)
+                    const error = await createResponse.json();
+                    if (error.existing_folder) {
+                        console.log('Dossier existant retourné par le backend:', part, 'ID:', error.existing_folder.id);
+                        folderMap.set(currentPath, error.existing_folder.id);
+
+                        existingFolders.push({
+                            id: error.existing_folder.id,
+                            path: fullPath,
+                            isFolder: true
+                        });
+                    }
                 } else {
-                    console.error('Erreur création dossier:', part);
+                    console.error('Erreur création dossier:', part, await createResponse.text());
                 }
             }
         }
@@ -2634,6 +2647,23 @@ async function createFolderStructureInCurrentFolder(parentId, folderPaths, allFi
                         parent_id: parentFolderId,
                         isFolder: true
                     });
+                } else if (createResponse.status === 409) {
+                    // Dossier existe déjà (retourné par le backend)
+                    const error = await createResponse.json();
+                    if (error.existing_folder) {
+                        console.log('Dossier existant retourné par le backend:', part, 'ID:', error.existing_folder.id);
+                        folderMap.set(currentPath, error.existing_folder.id);
+
+                        // Ajouter à la liste des existants
+                        existingFolders.push({
+                            id: error.existing_folder.id,
+                            filename: part,
+                            parent_id: parentFolderId,
+                            isFolder: true
+                        });
+                    }
+                } else {
+                    console.error('Erreur création dossier:', part, await createResponse.text());
                 }
             }
         }
