@@ -16,8 +16,8 @@ class ThumbnailServiceTest extends TestCase
         $projectDir = sys_get_temp_dir() . '/cloudserve_test_' . uniqid();
         mkdir($projectDir);
 
-        $this->testUploadDir = $projectDir . '/var/uploads';
-        $this->testThumbnailDir = $projectDir . '/var/uploads/thumbnails';
+        $this->testUploadDir = $projectDir . '/public/uploads';
+        $this->testThumbnailDir = $projectDir . '/public/uploads/thumbnails';
 
         mkdir($this->testUploadDir, 0777, true);
 
@@ -46,12 +46,25 @@ class ThumbnailServiceTest extends TestCase
             }
             @rmdir($this->testUploadDir);
         }
+
+        // Clean up parent directory
+        $projectDir = dirname($this->testUploadDir);
+        if (is_dir($projectDir . '/public')) {
+            @rmdir($projectDir . '/public');
+        }
+        if (is_dir($projectDir)) {
+            @rmdir($projectDir);
+        }
     }
 
     public function testGenerateThumbnailForPngImage(): void
     {
         if (!extension_loaded('gd')) {
             $this->markTestSkipped('GD extension is not available.');
+        }
+
+        if (!function_exists('imagewebp')) {
+            $this->markTestSkipped('WebP support is not available in GD.');
         }
 
         // Create a simple PNG image
@@ -67,9 +80,9 @@ class ThumbnailServiceTest extends TestCase
         $thumbnailPath = $this->thumbnailService->generateThumbnail('test_image.png', 200, 200);
 
         $this->assertNotNull($thumbnailPath);
-        $this->assertEquals('thumbnails/thumb_test_image.png', $thumbnailPath);
+        $this->assertEquals('thumbnails/thumb_test_image.webp', $thumbnailPath);
 
-        $fullThumbnailPath = $this->testThumbnailDir . '/thumb_test_image.png';
+        $fullThumbnailPath = $this->testThumbnailDir . '/thumb_test_image.webp';
         $this->assertFileExists($fullThumbnailPath);
 
         // Verify thumbnail dimensions
@@ -82,6 +95,10 @@ class ThumbnailServiceTest extends TestCase
     {
         if (!extension_loaded('gd')) {
             $this->markTestSkipped('GD extension is not available.');
+        }
+
+        if (!function_exists('imagewebp')) {
+            $this->markTestSkipped('WebP support is not available in GD.');
         }
 
         // Create a simple JPEG image
@@ -97,9 +114,9 @@ class ThumbnailServiceTest extends TestCase
         $thumbnailPath = $this->thumbnailService->generateThumbnail('test_image.jpg', 200, 200);
 
         $this->assertNotNull($thumbnailPath);
-        $this->assertEquals('thumbnails/thumb_test_image.jpg', $thumbnailPath);
+        $this->assertEquals('thumbnails/thumb_test_image.webp', $thumbnailPath);
 
-        $fullThumbnailPath = $this->testThumbnailDir . '/thumb_test_image.jpg';
+        $fullThumbnailPath = $this->testThumbnailDir . '/thumb_test_image.webp';
         $this->assertFileExists($fullThumbnailPath);
     }
 
@@ -163,9 +180,9 @@ class ThumbnailServiceTest extends TestCase
 
     public function testGetThumbnailPath(): void
     {
-        $thumbnailPath = $this->thumbnailService->getThumbnailPath('thumbnails/thumb_test.png');
+        $thumbnailPath = $this->thumbnailService->getThumbnailPath('thumbnails/thumb_test.webp');
 
-        $expectedPath = $this->testThumbnailDir . '/thumb_test.png';
+        $expectedPath = $this->testThumbnailDir . '/thumb_test.webp';
         $this->assertEquals($expectedPath, $thumbnailPath);
     }
 
@@ -173,6 +190,10 @@ class ThumbnailServiceTest extends TestCase
     {
         if (!extension_loaded('gd')) {
             $this->markTestSkipped('GD extension is not available.');
+        }
+
+        if (!function_exists('imagewebp')) {
+            $this->markTestSkipped('WebP support is not available in GD.');
         }
 
         // Create a wide image (800x200)
@@ -183,7 +204,9 @@ class ThumbnailServiceTest extends TestCase
 
         $thumbnailPath = $this->thumbnailService->generateThumbnail('wide_image.png', 200, 200);
 
-        $fullThumbnailPath = $this->testThumbnailDir . '/thumb_wide_image.png';
+        $this->assertNotNull($thumbnailPath);
+
+        $fullThumbnailPath = $this->testThumbnailDir . '/thumb_wide_image.webp';
         $thumbnailInfo = getimagesize($fullThumbnailPath);
 
         // The width should be 200 and height should be 50 (maintaining 4:1 ratio)

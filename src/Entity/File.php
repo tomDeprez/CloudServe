@@ -222,16 +222,23 @@ class File
             return 'image';
         }
 
+        // Audio - check MIME type first for ambiguous extensions like .ogg
+        if (str_starts_with($mimeType, 'audio/')) {
+            return 'audio';
+        }
+        if (in_array($extension, ['mp3', 'wav', 'flac', 'm4a', 'aac'])) {
+            return 'audio';
+        }
+
         // Vidéos
-        if (in_array($extension, ['mp4', 'webm', 'ogg', 'avi', 'mov', 'mkv']) ||
+        if (in_array($extension, ['mp4', 'webm', 'avi', 'mov', 'mkv']) ||
             str_starts_with($mimeType, 'video/')) {
             return 'video';
         }
 
-        // Audio
-        if (in_array($extension, ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac']) ||
-            str_starts_with($mimeType, 'audio/')) {
-            return 'audio';
+        // OGG can be both audio or video, default to video if mime type not available
+        if ($extension === 'ogg') {
+            return 'video';
         }
 
         // PDF
