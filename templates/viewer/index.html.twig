@@ -235,6 +235,9 @@ let allFiles = [];
 let currentIndex = -1;
 let isEditing = false;
 
+// Cache pour les fichiers préchargés
+let preloadCache = new Map();
+
 // Récupérer le parent_id de l'URL pour garder le contexte du dossier
 const urlParams = new URLSearchParams(window.location.search);
 const parentId = urlParams.get('parent_id');
@@ -249,6 +252,15 @@ function closeViewer() {
             return;
         }
     }
+
+    // Nettoyer les blob URLs pour libérer la mémoire
+    preloadCache.forEach((blobUrl, id) => {
+        if (typeof blobUrl === 'string' && blobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(blobUrl);
+        }
+    });
+    preloadCache.clear();
+
     // Retourner au bon dossier
     if (parentId) {
         window.location.href = `/dashboard?parent_id=${parentId}`;
@@ -262,45 +274,11 @@ async function loadFile(id) {
     content.innerHTML = '<div class="loading">Chargement...</div>';
 
     try {
-        // Charger les informations du fichier
-        const fileResponse = await fetch(`/files/${id}/view`, {
-            headers: { 'X-Auth-Token': token }
-        });
-
-        if (!fileResponse.ok) {
-            throw new Error('Impossible de charger le fichier');
-        }
-
-        const contentType = fileResponse.headers.get('Content-Type');
-
         // Charger la liste de tous les fichiers pour la navigation
         await loadAllFiles();
 
-        // Déterminer le type de fichier
-        if (contentType.includes('application/json')) {
-            const data = await fileResponse.json();
-            currentFile = data;
-
-            if (data.type === 'text') {
-                displayTextFile(data);
-            }
-        } else if (contentType.startsWith('image/')) {
-            displayImage(id);
-        } else if (contentType.startsWith('video/')) {
-            displayVideo(id);
-        } else if (contentType.startsWith('audio/')) {
-            displayAudio(id);
-        } else if (contentType.includes('pdf')) {
-            displayPdf(id);
-        } else {
-            // Fichier non visualisable
-            content.innerHTML = `
-                <div class="error-message">
-                    <p>⚠️ Ce type de fichier ne peut pas être visualisé directement.</p>
-                    <button class="btn-viewer" onclick="downloadFile()">⬇️ Télécharger le fichier</button>
-                </div>
-            `;
-        }
+        // Charger le contenu du fichier
+        await loadFileContent(id);
 
         updateTitle();
         updateNavigation();
@@ -396,9 +374,10 @@ function markAsEdited() {
 
 async function saveTextFile() {
     const content = document.getElementById('text-content').value;
+    const currentFileId = allFiles[currentIndex]?.id || fileId;
 
     try {
-        const response = await fetch(`/files/${fileId}/content`, {
+        const response = await fetch(`/files/${currentFileId}/content`, {
             method: 'PUT',
             headers: {
                 'X-Auth-Token': token,
@@ -435,9 +414,63 @@ function updateNavigation() {
         prevBtn.disabled = currentIndex <= 0;
         nextBtn.disabled = currentIndex >= allFiles.length - 1;
     }
+
+    // Précharger les fichiers adjacents (2 de chaque côté)
+    preloadAdjacentFiles();
 }
 
-function navigateFile(direction) {
+// Précharger les images/vidéos adjacentes pour une navigation instantanée
+async function preloadAdjacentFiles() {
+    const filesToPreload = [];
+
+    // Précharger 2 fichiers à gauche et 2 à droite
+    for (let offset = -2; offset <= 2; offset++) {
+        if (offset === 0) continue; // Skip current file
+        const index = currentIndex + offset;
+        if (index >= 0 && index < allFiles.length) {
+            const file = allFiles[index];
+            // Précharger seulement les images et vidéos
+            if (file.type === 'image' || file.type === 'video') {
+                filesToPreload.push(file);
+            }
+        }
+    }
+
+    // Précharger chaque fichier avec fetch() et token pour authentification
+    for (const file of filesToPreload) {
+        if (!preloadCache.has(file.id)) {
+            try {
+                if (file.type === 'image') {
+                    // Précharger avec fetch pour inclure le token
+                    const response = await fetch(`/files/${file.id}/view`, {
+                        headers: { 'X-Auth-Token': token }
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        preloadCache.set(file.id, blobUrl);
+                    }
+                } else if (file.type === 'video') {
+                    // Pour les vidéos, précharger les métadonnées seulement
+                    const response = await fetch(`/files/${file.id}/view`, {
+                        headers: { 'X-Auth-Token': token }
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        preloadCache.set(file.id, blobUrl);
+                    }
+                }
+            } catch (error) {
+                console.warn('Preload failed for file', file.id, error);
+            }
+        }
+    }
+}
+
+async function navigateFile(direction) {
     if (isEditing && !confirm('Vous avez des modifications non enregistrées. Continuer ?')) {
         return;
     }
@@ -446,15 +479,112 @@ function navigateFile(direction) {
 
     if (newIndex >= 0 && newIndex < allFiles.length) {
         currentIndex = newIndex;
-        const newFileId = allFiles[currentIndex].id;
-        // Passer le parent_id pour garder le contexte du dossier
-        const url = parentId ? `/viewer/${newFileId}?parent_id=${parentId}` : `/viewer/${newFileId}`;
-        window.location.href = url;
+        const newFile = allFiles[currentIndex];
+
+        // Mettre à jour l'URL dans l'historique sans recharger la page
+        const url = parentId ? `/viewer/${newFile.id}?parent_id=${parentId}` : `/viewer/${newFile.id}`;
+        window.history.pushState({ fileId: newFile.id }, '', url);
+
+        // Charger le nouveau fichier via AJAX
+        await loadFileContent(newFile.id);
+        updateTitle();
+        updateNavigation();
     }
 }
 
+// Nouvelle fonction pour charger le contenu sans recharger la page
+async function loadFileContent(id) {
+    const content = document.getElementById('viewer-content');
+    const fileInfo = allFiles[currentIndex];
+
+    // Si c'est une image et qu'elle est déjà dans le cache, l'utiliser directement !
+    if (fileInfo && fileInfo.type === 'image' && preloadCache.has(id)) {
+        displayImageFromCache(id);
+        return;
+    }
+
+    try {
+        const fileResponse = await fetch(`/files/${id}/view`, {
+            headers: { 'X-Auth-Token': token }
+        });
+
+        // Vérifier si le fichier est en cours de traitement
+        if (fileResponse.status === 202) {
+            const data = await fileResponse.json();
+            content.innerHTML = `
+                <div style="text-align: center; color: white; max-width: 500px;">
+                    <div style="font-size: 4rem; margin-bottom: 2rem;">⏳</div>
+                    <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">Fichier en cours de traitement</h2>
+                    <p style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-bottom: 2rem;">
+                        Le fichier "${data.filename}" est en train d'être compressé et optimisé.<br>
+                        Cela prendra quelques instants...
+                    </p>
+                    <button class="btn-viewer" onclick="loadFileContent(${id})">🔄 Recharger</button>
+                </div>
+            `;
+            return;
+        }
+
+        if (!fileResponse.ok) {
+            throw new Error('Impossible de charger le fichier');
+        }
+
+        const contentType = fileResponse.headers.get('Content-Type');
+
+        // Déterminer le type de fichier et afficher
+        if (contentType.includes('application/json')) {
+            const data = await fileResponse.json();
+            currentFile = data;
+            if (data.type === 'text') {
+                displayTextFile(data);
+            }
+        } else if (contentType.startsWith('image/')) {
+            displayImage(id);
+        } else if (contentType.startsWith('video/')) {
+            displayVideo(id);
+        } else if (contentType.startsWith('audio/')) {
+            displayAudio(id);
+        } else if (contentType.includes('pdf')) {
+            displayPdf(id);
+        } else {
+            content.innerHTML = `
+                <div class="error-message">
+                    <p>⚠️ Ce type de fichier ne peut pas être visualisé directement.</p>
+                    <button class="btn-viewer" onclick="window.location.href='/files/${id}/download'">⬇️ Télécharger le fichier</button>
+                </div>
+            `;
+        }
+    } catch (error) {
+        content.innerHTML = `
+            <div class="error-message">
+                <p>❌ Erreur lors du chargement du fichier</p>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Afficher une image depuis le cache (instantané !)
+function displayImageFromCache(id) {
+    const content = document.getElementById('viewer-content');
+    const blobUrl = preloadCache.get(id);
+
+    content.innerHTML = `
+        <img src="${blobUrl}" class="viewer-media" alt="Image" style="opacity: 0; transition: opacity 0.2s;">
+        <button class="viewer-nav viewer-nav-prev" id="nav-prev" onclick="navigateFile('prev')">‹</button>
+        <button class="viewer-nav viewer-nav-next" id="nav-next" onclick="navigateFile('next')">›</button>
+    `;
+
+    // Fade in rapide
+    setTimeout(() => {
+        const img = content.querySelector('img');
+        if (img) img.style.opacity = '1';
+    }, 10);
+}
+
 function downloadFile() {
-    window.location.href = `/files/${fileId}/download`;
+    const currentFileId = allFiles[currentIndex]?.id || fileId;
+    window.location.href = `/files/${currentFileId}/download`;
 }
 
 // Navigation au clavier
@@ -465,6 +595,19 @@ document.addEventListener('keydown', (e) => {
         navigateFile('next');
     } else if (e.key === 'Escape') {
         closeViewer();
+    }
+});
+
+// Gérer les boutons back/forward du navigateur
+window.addEventListener('popstate', async (e) => {
+    if (e.state && e.state.fileId) {
+        // Trouver l'index du fichier
+        currentIndex = allFiles.findIndex(f => f.id === e.state.fileId);
+        if (currentIndex !== -1) {
+            await loadFileContent(e.state.fileId);
+            updateTitle();
+            updateNavigation();
+        }
     }
 });
 

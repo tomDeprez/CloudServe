@@ -9,6 +9,8 @@ use App\Service\FileStorageService;
 use App\Service\RawFileUploadService;
 use App\Service\ThumbnailService;
 use App\Service\ImageCompressionService;
+use App\Service\VideoCompressionService;
+use App\Service\AudioCompressionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -27,6 +29,8 @@ class FileController extends AbstractController
         private RawFileUploadService $rawFileUpload,
         private ThumbnailService $thumbnailService,
         private ImageCompressionService $imageCompressionService,
+        private VideoCompressionService $videoCompressionService,
+        private AudioCompressionService $audioCompressionService,
         private FileRepository $fileRepository,
     ) {
     }
@@ -97,9 +101,10 @@ class FileController extends AbstractController
             try {
                 $uploadResult = $this->rawFileUpload->store($fileData);
 
+                $uploadPath = $this->getParameter('kernel.project_dir') . '/public/uploads/' . $uploadResult['storedName'];
+
                 // Compresser l'image si applicable
                 if ($this->imageCompressionService->isCompressibleImage($uploadResult['mimeType'])) {
-                    $uploadPath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $uploadResult['storedName'];
                     $compressed = $this->imageCompressionService->compressImage(
                         $uploadPath,
                         $uploadPath, // Écraser le fichier original
@@ -112,25 +117,65 @@ class FileController extends AbstractController
                     }
                 }
 
+                // Compresser la vidéo si applicable
+                if ($this->videoCompressionService->isCompressibleVideo($uploadResult['mimeType'])) {
+                    $tempPath = $uploadPath . '.temp.mp4';
+                    $compressed = $this->videoCompressionService->compressVideo($uploadPath, $tempPath);
+
+                    if ($compressed && file_exists($tempPath)) {
+                        // Remplacer le fichier original par la version compressée
+                        unlink($uploadPath);
+                        rename($tempPath, $uploadPath);
+                        $uploadResult['size'] = filesize($uploadPath);
+                    }
+                }
+
+                // Compresser l'audio si applicable
+                if ($this->audioCompressionService->isCompressibleAudio($uploadResult['mimeType'])) {
+                    $tempPath = $uploadPath . '.temp.m4a';
+                    $compressed = $this->audioCompressionService->compressAudio($uploadPath, $tempPath);
+
+                    if ($compressed && file_exists($tempPath)) {
+                        // Remplacer le fichier original par la version compressée
+                        unlink($uploadPath);
+                        rename($tempPath, $uploadPath);
+                        $uploadResult['size'] = filesize($uploadPath);
+                    }
+                }
+
                 $file = new File();
                 $file->setFilename($uploadResult['originalName']);
                 $file->setStoredName($uploadResult['storedName']);
                 $file->setMimeType($uploadResult['mimeType']);
                 $file->setSize((string)$uploadResult['size']);
+                $file->setHash($uploadResult['hash']);
                 $file->setUser($user);
                 $file->setType('file');
                 if ($parent) {
                     $file->setParent($parent);
                 }
 
+                // Marquer comme en cours de traitement
+                $file->setProcessing(true);
+
+                // Persister immédiatement pour que le fichier apparaisse dans la liste
+                $this->entityManager->persist($file);
+                $this->entityManager->flush();
+
                 // Générer miniature pour les images
                 if ($file->getFileType() === 'image') {
-                    $thumbnailPath = $this->thumbnailService->generateThumbnail($uploadResult['storedName']);
-                    if ($thumbnailPath) {
-                        $file->setThumbnail($thumbnailPath);
+                    try {
+                        $thumbnailPath = $this->thumbnailService->generateThumbnail($uploadResult['storedName']);
+                        if ($thumbnailPath) {
+                            $file->setThumbnail($thumbnailPath);
+                        }
+                    } catch (\Exception $e) {
+                        // Ignorer les erreurs de génération de miniature
                     }
                 }
 
+                // Marquer le traitement comme terminé
+                $file->setProcessing(false);
                 $this->entityManager->persist($file);
 
                 $uploadedFiles[] = [
@@ -184,6 +229,72 @@ class FileController extends AbstractController
         }
 
         return $normalized;
+    }
+
+    #[Route('/check-duplicates', name: 'app_file_check_duplicates', methods: ['POST'])]
+    public function checkDuplicates(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $hash = $data['hash'] ?? null;
+
+        if (!$hash) {
+            return new JsonResponse(['error' => 'Hash required'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Trouver les fichiers avec le même hash
+        $duplicates = $this->fileRepository->findDuplicatesByHash($user, $hash);
+
+        $duplicatesData = array_map(function (File $file) {
+            return [
+                'id' => $file->getId(),
+                'filename' => $file->getFilename(),
+                'size' => $file->getSize(),
+                'path' => $this->fileRepository->getFilePath($file),
+                'uploadedAt' => $file->getUploadedAt()->format('Y-m-d H:i:s'),
+            ];
+        }, $duplicates);
+
+        return new JsonResponse([
+            'hasDuplicates' => count($duplicates) > 0,
+            'duplicates' => $duplicatesData,
+        ]);
+    }
+
+    #[Route('/all-with-paths', name: 'app_file_all_with_paths', methods: ['GET'])]
+    public function allWithPaths(): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Récupérer tous les fichiers de l'utilisateur
+        $files = $this->fileRepository->findByUser($user);
+
+        $filesData = array_map(function (File $file) {
+            return [
+                'id' => $file->getId(),
+                'filename' => $file->getFilename(),
+                'size' => $file->getSize(),
+                'type' => $file->getFileType(),
+                'isFolder' => $file->isFolder(),
+                'path' => $this->fileRepository->getFilePath($file),
+                'uploadedAt' => $file->getUploadedAt()->format('Y-m-d H:i:s'),
+                'mimeType' => $file->getMimeType(),
+            ];
+        }, $files);
+
+        return new JsonResponse([
+            'files' => $filesData,
+            'total' => count($filesData),
+        ]);
     }
 
     #[Route('/upload', name: 'app_file_upload', methods: ['POST'])]
@@ -259,9 +370,10 @@ class FileController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
+        $uploadPath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $uploadResult['storedName'];
+
         // Compresser l'image si applicable
         if ($this->imageCompressionService->isCompressibleImage($uploadResult['mimeType'])) {
-            $uploadPath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $uploadResult['storedName'];
             $compressed = $this->imageCompressionService->compressImage(
                 $uploadPath,
                 $uploadPath, // Écraser le fichier original
@@ -270,6 +382,30 @@ class FileController extends AbstractController
 
             // Mettre à jour la taille si compression réussie
             if ($compressed && file_exists($uploadPath)) {
+                $uploadResult['size'] = filesize($uploadPath);
+            }
+        }
+
+        // Compresser la vidéo si applicable
+        if ($this->videoCompressionService->isCompressibleVideo($uploadResult['mimeType'])) {
+            $tempPath = $uploadPath . '.temp.mp4';
+            $compressed = $this->videoCompressionService->compressVideo($uploadPath, $tempPath);
+
+            if ($compressed && file_exists($tempPath)) {
+                unlink($uploadPath);
+                rename($tempPath, $uploadPath);
+                $uploadResult['size'] = filesize($uploadPath);
+            }
+        }
+
+        // Compresser l'audio si applicable
+        if ($this->audioCompressionService->isCompressibleAudio($uploadResult['mimeType'])) {
+            $tempPath = $uploadPath . '.temp.m4a';
+            $compressed = $this->audioCompressionService->compressAudio($uploadPath, $tempPath);
+
+            if ($compressed && file_exists($tempPath)) {
+                unlink($uploadPath);
+                rename($tempPath, $uploadPath);
                 $uploadResult['size'] = filesize($uploadPath);
             }
         }
@@ -293,6 +429,7 @@ class FileController extends AbstractController
         $file->setStoredName($uploadResult['storedName']);
         $file->setMimeType($uploadResult['mimeType']);
         $file->setSize((string)$uploadResult['size']);
+        $file->setHash($uploadResult['hash']);
         $file->setUser($user);
         $file->setType('file');
         if ($parent) {
@@ -301,9 +438,13 @@ class FileController extends AbstractController
 
         // Générer une miniature si c'est une image
         if ($file->getFileType() === 'image') {
-            $thumbnailPath = $this->thumbnailService->generateThumbnail($uploadResult['storedName']);
-            if ($thumbnailPath) {
-                $file->setThumbnail($thumbnailPath);
+            try {
+                $thumbnailPath = $this->thumbnailService->generateThumbnail($uploadResult['storedName']);
+                if ($thumbnailPath) {
+                    $file->setThumbnail($thumbnailPath);
+                }
+            } catch (\Exception $e) {
+                // Ignorer les erreurs de génération de miniature
             }
         }
 
@@ -370,6 +511,7 @@ class FileController extends AbstractController
                 'thumbnail' => $file->getThumbnail(),
                 'parent_id' => $file->getParent()?->getId(),
                 'uploadedAt' => $file->getUploadedAt()->format('Y-m-d H:i:s'),
+                'processing' => $file->isProcessing(),
             ];
         }, $files);
 
@@ -430,21 +572,48 @@ class FileController extends AbstractController
         $this->denyAccessUnlessGranted(FileVoter::DELETE, $file);
 
         $user = $file->getUser();
-        $fileSize = (int)$file->getSize();
-
-        // Supprimer le fichier du disque
-        $this->fileStorage->delete($file->getStoredName());
+        $totalSize = $this->deleteFileRecursive($file);
 
         // Mettre à jour l'espace utilisé
-        $user->setUsedSpace((string)max(0, (int)$user->getUsedSpace() - $fileSize));
-
-        $this->entityManager->remove($file);
+        $user->setUsedSpace((string)max(0, (int)$user->getUsedSpace() - $totalSize));
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
         return new JsonResponse([
             'message' => 'File deleted successfully'
         ]);
+    }
+
+    /**
+     * Supprime un fichier ou dossier de manière récursive
+     * @return int Taille totale supprimée
+     */
+    private function deleteFileRecursive(\App\Entity\File $file): int
+    {
+        $totalSize = 0;
+
+        // Si c'est un dossier, supprimer tous les fichiers enfants
+        if ($file->isFolder()) {
+            $children = $this->fileRepository->findBy(['parent' => $file]);
+            foreach ($children as $child) {
+                $totalSize += $this->deleteFileRecursive($child);
+            }
+        } else {
+            // C'est un fichier, supprimer du disque
+            if ($file->getStoredName()) {
+                $this->fileStorage->delete($file->getStoredName());
+            }
+            // Supprimer la miniature si elle existe
+            if ($file->getThumbnail()) {
+                $this->thumbnailService->deleteThumbnail($file->getThumbnail());
+            }
+            $totalSize = (int)$file->getSize();
+        }
+
+        // Supprimer l'entité de la base de données
+        $this->entityManager->remove($file);
+
+        return $totalSize;
     }
 
     #[Route('/folder', name: 'app_folder_create', methods: ['POST'])]
@@ -689,6 +858,15 @@ class FileController extends AbstractController
         }
 
         $this->denyAccessUnlessGranted(FileVoter::VIEW, $file);
+
+        // Vérifier si le fichier est en cours de traitement
+        if ($file->isProcessing()) {
+            return new JsonResponse([
+                'processing' => true,
+                'message' => 'Fichier en cours de traitement...',
+                'filename' => $file->getFilename(),
+            ], Response::HTTP_ACCEPTED);
+        }
 
         // Pour les fichiers texte éditables, retourner le contenu JSON
         if ($file->isEditable()) {

@@ -10,7 +10,7 @@ class FileStorageService
 
     public function __construct(string $projectDir)
     {
-        $this->uploadDirectory = $projectDir . '/var/uploads';
+        $this->uploadDirectory = $projectDir . '/public/uploads';
         if (!is_dir($this->uploadDirectory)) {
             mkdir($this->uploadDirectory, 0777, true);
         }

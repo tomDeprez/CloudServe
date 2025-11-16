@@ -539,7 +539,228 @@
     .files-grid {
         user-select: none;
     }
+
+    /* Popup de gestion des fichiers */
+    .files-manager-popup {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 450px;
+        max-height: 600px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        display: none;
+        flex-direction: column;
+        z-index: 1000;
+        transition: all 0.3s ease;
+    }
+
+    .files-manager-popup.open {
+        display: flex;
+    }
+
+    .files-manager-popup.minimized {
+        max-height: 60px;
+    }
+
+    .files-manager-popup.minimized .files-manager-body {
+        display: none;
+    }
+
+    .files-manager-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        border-radius: 16px 16px 0 0;
+        cursor: move;
+    }
+
+    .files-manager-popup.minimized .files-manager-header {
+        border-radius: 16px;
+    }
+
+    .files-manager-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .files-manager-icon {
+        font-size: 1.25rem;
+    }
+
+    .files-manager-count {
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+
+    .files-manager-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .files-manager-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        transition: background 0.2s;
+    }
+
+    .files-manager-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .files-manager-body {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        flex: 1;
+    }
+
+    .files-manager-search {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .files-manager-search input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        font-size: 0.875rem;
+    }
+
+    .files-manager-search input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .files-manager-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem;
+    }
+
+    .files-manager-loading {
+        text-align: center;
+        padding: 2rem;
+        color: var(--gray-500);
+    }
+
+    .files-manager-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.25rem;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .files-manager-item:hover {
+        background: var(--gray-50);
+    }
+
+    .files-manager-item-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .files-manager-item-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .files-manager-item-name {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--gray-900);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .files-manager-item-path {
+        font-size: 0.75rem;
+        color: var(--gray-500);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .files-manager-item-meta {
+        font-size: 0.75rem;
+        color: var(--gray-400);
+        flex-shrink: 0;
+        text-align: right;
+    }
+
+    /* Bouton flottant */
+    .files-manager-fab {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        transition: all 0.3s ease;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .files-manager-fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    }
+
+    .files-manager-fab.hidden {
+        display: none;
+    }
+
+    .files-manager-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .files-manager-list::-webkit-scrollbar-track {
+        background: var(--gray-100);
+        border-radius: 3px;
+    }
+
+    .files-manager-list::-webkit-scrollbar-thumb {
+        background: var(--gray-400);
+        border-radius: 3px;
+    }
+
+    .files-manager-list::-webkit-scrollbar-thumb:hover {
+        background: var(--gray-500);
+    }
 </style>
+<link rel="stylesheet" href="/css/ui-components.css">
 {% endblock %}
 
 {% block body %}
@@ -674,9 +895,42 @@
     </div>
 </div>
 
+<!-- Popup de gestion des fichiers -->
+<div class="files-manager-popup" id="files-manager-popup">
+    <div class="files-manager-header">
+        <div class="files-manager-title">
+            <span class="files-manager-icon">📁</span>
+            <span>Tous mes fichiers</span>
+            <span class="files-manager-count" id="files-manager-count">(0)</span>
+        </div>
+        <div class="files-manager-actions">
+            <button class="files-manager-btn" onclick="toggleFilesManager()" id="toggle-btn" title="Minimiser/Maximiser">
+                ▼
+            </button>
+            <button class="files-manager-btn" onclick="closeFilesManager()" title="Fermer">
+                ✕
+            </button>
+        </div>
+    </div>
+    <div class="files-manager-body" id="files-manager-body">
+        <div class="files-manager-search">
+            <input type="text" id="files-search" placeholder="🔍 Rechercher un fichier..." onkeyup="filterFiles()">
+        </div>
+        <div class="files-manager-list" id="files-manager-list">
+            <div class="files-manager-loading">Chargement...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Bouton flottant pour ouvrir la popup -->
+<button class="files-manager-fab" onclick="openFilesManager()" title="Voir tous mes fichiers">
+    📂
+</button>
+
 <!-- Rectangle de sélection -->
 <div class="selection-box" id="selection-box"></div>
 
+<script src="/js/ui-components.js"></script>
 <script>
 const token = localStorage.getItem('auth_token');
 let currentFolder = null;
@@ -735,6 +989,22 @@ function updateStats() {
 
 // Charger les fichiers
 async function loadFiles(folderId = null) {
+    const grid = document.getElementById('files-grid');
+
+    // Afficher un loader stylé
+    grid.innerHTML = `
+        <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; gap: 2rem;">
+            <div style="position: relative; width: 80px; height: 80px;">
+                <div style="position: absolute; width: 80px; height: 80px; border: 4px solid rgba(99, 102, 241, 0.2); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div style="position: absolute; top: 20px; left: 20px; width: 40px; height: 40px; border: 4px solid rgba(139, 92, 246, 0.2); border-bottom-color: #8b5cf6; border-radius: 50%; animation: spin 0.7s linear infinite reverse;"></div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.25rem; font-weight: 600; color: var(--gray-900); margin-bottom: 0.5rem;">Chargement des fichiers...</div>
+                <div style="font-size: 0.875rem; color: var(--gray-500);">Veuillez patienter</div>
+            </div>
+        </div>
+    `;
+
     try {
         const url = folderId ? `/files?parent_id=${folderId}` : '/files';
         const response = await fetch(url, {
@@ -753,7 +1023,14 @@ async function loadFiles(folderId = null) {
         renderFiles();
     } catch (error) {
         console.error('Error loading files:', error);
-        alert('❌ Erreur lors du chargement des fichiers');
+        ui.toast('Erreur lors du chargement des fichiers', 'error');
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 2rem; color: var(--danger);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+                <div style="font-size: 1.125rem; font-weight: 600;">Erreur de chargement</div>
+                <div style="font-size: 0.875rem; color: var(--gray-500); margin-top: 0.5rem;">Impossible de charger les fichiers</div>
+            </div>
+        `;
     }
 }
 
@@ -789,6 +1066,16 @@ function renderFiles() {
         const thumbnail = file.thumbnail ? `/uploads/thumbnails/${file.thumbnail.replace('thumbnails/', '')}` : null;
         const escapedFilename = escapeHtml(file.filename);
 
+        // Afficher un indicateur de traitement si le fichier est en cours de traitement
+        const processingOverlay = file.processing ? `
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;border-radius:8px;z-index:5;">
+                <div style="text-align:center;color:white;">
+                    <div style="font-size:2rem;margin-bottom:0.5rem;">⏳</div>
+                    <div style="font-size:0.75rem;">Traitement...</div>
+                </div>
+            </div>
+        ` : '';
+
         return `
             <div class="file-card ${selectedFiles.has(file.id) ? 'selected' : ''}" data-file-id="${file.id}"
                  draggable="true"
@@ -797,14 +1084,15 @@ function renderFiles() {
                  onclick="handleFileClick(event, ${file.id})">
                 <div class="file-thumbnail" onclick="event.stopPropagation(); openFile(${file.id}, '${file.type}', ${file.isFolder})">
                     ${thumbnail ? `<img src="${thumbnail}" alt="${escapedFilename}">` : `<div class="file-thumbnail-icon">${icon}</div>`}
+                    ${processingOverlay}
                 </div>
                 <div class="file-name" title="${file.filename}">${file.filename}</div>
                 <div class="file-meta">
                     <span>${formatSize(file.size)}</span>
-                    <span>${file.type}</span>
+                    <span>${file.processing ? '⏳ Traitement...' : file.type}</span>
                 </div>
                 <div class="file-actions">
-                    ${!file.isFolder ? `<button class="file-action-btn" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>` : ''}
+                    ${!file.isFolder && !file.processing ? `<button class="file-action-btn" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>` : ''}
                     <button class="file-action-btn delete" onclick="event.stopPropagation(); deleteFile(${file.id})">🗑️</button>
                 </div>
             </div>
@@ -857,7 +1145,16 @@ async function deleteFile(id) {
     const file = allFiles.find(f => f.id === id);
     if (!file) return;
 
-    if (!confirm(`Supprimer "${file.filename}" ?`)) return;
+    const confirmed = await ui.confirm(
+        'Supprimer ce fichier ?',
+        `Voulez-vous vraiment supprimer "${file.filename}" ?`,
+        'Supprimer',
+        'Annuler'
+    );
+
+    if (!confirmed) return;
+
+    ui.showLoader('Suppression en cours...', '🗑️');
 
     try {
         const response = await fetch(`/files/${id}`, {
@@ -866,16 +1163,20 @@ async function deleteFile(id) {
         });
 
         if (response.ok) {
-            alert('✅ Fichier supprimé');
+            ui.toast('Fichier supprimé avec succès', 'success');
             selectedFiles.delete(id);
             updateMultiActionBar();
-            loadFiles(currentFolder?.id);
-            loadUserData();
+            await loadFiles(currentFolder?.id);
+            await loadUserData();
         } else {
             throw new Error('Delete failed');
         }
     } catch (error) {
-        alert('❌ Erreur lors de la suppression');
+        console.error('Error deleting file:', error);
+        ui.toast('Erreur lors de la suppression', 'error');
+    } finally {
+        // Toujours cacher le loader, même en cas d'erreur
+        ui.hideLoader();
     }
 }
 
@@ -933,34 +1234,53 @@ async function deleteSelectedFiles() {
     if (selectedFiles.size === 0) return;
 
     const count = selectedFiles.size;
-    if (!confirm(`Supprimer ${count} fichier(s) sélectionné(s) ?`)) return;
+    const confirmed = await ui.confirm(
+        'Supprimer les fichiers sélectionnés ?',
+        `Voulez-vous vraiment supprimer ${count} fichier(s) ?`,
+        'Supprimer tout',
+        'Annuler'
+    );
+
+    if (!confirmed) return;
+
+    ui.showLoader(`Suppression de ${count} fichier(s)...`, '🗑️');
 
     const fileIds = Array.from(selectedFiles);
     let deleted = 0;
     let errors = 0;
 
-    for (const fileId of fileIds) {
-        try {
-            const response = await fetch(`/files/${fileId}`, {
-                method: 'DELETE',
-                headers: { 'X-Auth-Token': token }
-            });
+    try {
+        for (const fileId of fileIds) {
+            try {
+                const response = await fetch(`/files/${fileId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-Auth-Token': token }
+                });
 
-            if (response.ok) {
-                deleted++;
-                selectedFiles.delete(fileId);
-            } else {
+                if (response.ok) {
+                    deleted++;
+                    selectedFiles.delete(fileId);
+                } else {
+                    errors++;
+                }
+            } catch (error) {
                 errors++;
             }
-        } catch (error) {
-            errors++;
         }
-    }
 
-    alert(`✅ ${deleted} fichier(s) supprimé(s)${errors > 0 ? `, ${errors} erreur(s)` : ''}`);
-    updateMultiActionBar();
-    loadFiles(currentFolder?.id);
-    loadUserData();
+        if (errors > 0) {
+            ui.toast(`${deleted} fichier(s) supprimé(s), ${errors} erreur(s)`, 'warning');
+        } else {
+            ui.toast(`${deleted} fichier(s) supprimé(s) avec succès`, 'success');
+        }
+
+        updateMultiActionBar();
+        await loadFiles(currentFolder?.id);
+        await loadUserData();
+    } finally {
+        // Toujours cacher le loader
+        ui.hideLoader();
+    }
 }
 
 // Sélection par rectangle (lasso)
@@ -1074,7 +1394,11 @@ async function moveSelectedFilesToFolder(targetFolderId) {
     }
 
     if (moved > 0) {
-        alert(`✅ ${moved} fichier(s) déplacé(s)${errors > 0 ? `, ${errors} erreur(s)` : ''}`);
+        if (errors > 0) {
+            ui.toast(`${moved} fichier(s) déplacé(s), ${errors} erreur(s)`, 'warning');
+        } else {
+            ui.toast(`${moved} fichier(s) déplacé(s) avec succès`, 'success');
+        }
     }
 
     draggedFiles.clear();
@@ -1120,16 +1444,208 @@ uploadCard.addEventListener('drop', (e) => {
     }
 });
 
+// Calculer le hash SHA-256 d'un fichier
+async function calculateFileHash(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const buffer = e.target.result;
+                const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                resolve(hashHex);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Vérifier les doublons pour un fichier
+async function checkDuplicates(hash) {
+    try {
+        const response = await fetch('/files/check-duplicates', {
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ hash })
+        });
+
+        if (response.ok) {
+            return await response.json();
+        }
+        return { hasDuplicates: false, duplicates: [] };
+    } catch (error) {
+        console.error('Error checking duplicates:', error);
+        return { hasDuplicates: false, duplicates: [] };
+    }
+}
+
 async function uploadFiles(files) {
+    // Vérifier les doublons pour chaque fichier
+    const filesWithDuplicates = [];
+    const filesWithoutDuplicates = [];
+
+    // Créer une animation de vérification ULTRA STYLÉE
+    const loadingMsg = document.createElement('div');
+    loadingMsg.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s;';
+    loadingMsg.innerHTML = `
+        <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);padding:3.5rem 5rem;border-radius:24px;box-shadow:0 25px 80px rgba(0,0,0,0.4);text-align:center;animation:slideUp 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);border:2px solid rgba(255,255,255,0.2);max-width:500px;">
+            <div style="font-size:4rem;margin-bottom:1rem;animation:float 2s ease-in-out infinite;">🔍</div>
+            <div style="width:100px;height:100px;margin:0 auto 1.5rem;position:relative;">
+                <div style="position:absolute;width:100px;height:100px;border:6px solid rgba(255,255,255,0.2);border-top-color:white;border-radius:50%;animation:spin 1.2s linear infinite;box-shadow:0 0 20px rgba(255,255,255,0.3);"></div>
+                <div style="position:absolute;top:25px;left:25px;width:50px;height:50px;border:6px solid rgba(255,255,255,0.2);border-bottom-color:white;border-radius:50%;animation:spin 0.8s linear infinite reverse;"></div>
+            </div>
+            <div style="font-size:1.5rem;font-weight:800;color:white;margin-bottom:0.75rem;text-shadow:0 2px 10px rgba(0,0,0,0.3);">Analyse intelligente</div>
+            <div style="font-size:1rem;color:rgba(255,255,255,0.9);margin-bottom:1.5rem;font-weight:500;">Détection des doublons en cours...</div>
+            <div style="background:rgba(255,255,255,0.15);padding:1rem 1.5rem;border-radius:12px;backdrop-filter:blur(10px);">
+                <div style="font-size:0.875rem;color:rgba(255,255,255,0.8);margin-bottom:0.5rem;">Vérification des doublons (0/${files.length})</div>
+            </div>
+        </div>
+    `;
+
+    // Ajouter les animations CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(40px) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(loadingMsg);
+
+    let checkedCount = 0;
+    const progressContainer = loadingMsg.querySelector('div[style*="backdrop-filter"]');
+    const progressText = progressContainer.querySelector('div');
+
+    // Ajouter une barre de progression stylée
+    const duplicateProgressBar = document.createElement('div');
+    duplicateProgressBar.style.cssText = 'width:100%;height:8px;background:rgba(255,255,255,0.2);border-radius:4px;margin-top:1rem;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);';
+    duplicateProgressBar.innerHTML = '<div style="height:100%;background:linear-gradient(90deg,#fff,rgba(255,255,255,0.8),#fff);background-size:200% 100%;width:0%;transition:width 0.4s cubic-bezier(0.4, 0, 0.2, 1);animation:shimmer 2s linear infinite;box-shadow:0 0 10px rgba(255,255,255,0.5);"></div>';
+    progressContainer.appendChild(duplicateProgressBar);
+    const progressFill = duplicateProgressBar.querySelector('div');
+
+    // Ajouter animation shimmer
+    const shimmerStyle = document.createElement('style');
+    shimmerStyle.textContent = '@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }';
+    document.head.appendChild(shimmerStyle);
+
+    // Fonction pour traiter un fichier
+    const processFile = async (file) => {
+        try {
+            const hash = await calculateFileHash(file);
+            const duplicateCheck = await checkDuplicates(hash);
+
+            return {
+                file,
+                hasDuplicates: duplicateCheck.hasDuplicates,
+                duplicates: duplicateCheck.duplicates
+            };
+        } catch (error) {
+            console.error('Error checking file:', file.name, error);
+            return {
+                file,
+                hasDuplicates: false,
+                duplicates: []
+            };
+        }
+    };
+
+    // Traiter les fichiers 4 à la fois en parallèle pour ACCÉLÉRER !
+    const PARALLEL_COUNT = 4;
+    const fileArray = Array.from(files);
+
+    for (let i = 0; i < fileArray.length; i += PARALLEL_COUNT) {
+        const batch = fileArray.slice(i, i + PARALLEL_COUNT);
+        const results = await Promise.all(batch.map(processFile));
+
+        results.forEach(result => {
+            checkedCount++;
+            const progress = (checkedCount / files.length) * 100;
+            progressText.innerHTML = `
+                <span style="font-size:0.875rem;color:rgba(255,255,255,0.8);">Fichiers analysés</span>
+                <div style="font-size:1.75rem;font-weight:800;color:white;margin:0.5rem 0;">${checkedCount}/${files.length}</div>
+                <span style="font-size:0.75rem;color:rgba(255,255,255,0.6);">${Math.round(progress)}% terminé</span>
+            `;
+            progressFill.style.width = progress + '%';
+
+            if (result.hasDuplicates) {
+                filesWithDuplicates.push({
+                    file: result.file,
+                    duplicates: result.duplicates
+                });
+            } else {
+                filesWithoutDuplicates.push(result.file);
+            }
+        });
+    }
+
+    // Animation de fermeture fluide
+    loadingMsg.style.animation = 'fadeOut 0.2s';
+    setTimeout(() => {
+        if (loadingMsg.parentNode) {
+            document.body.removeChild(loadingMsg);
+        }
+    }, 200);
+
+    // Ajouter l'animation fadeOut au style
+    const fadeOutStyle = document.createElement('style');
+    fadeOutStyle.textContent = '@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }';
+    document.head.appendChild(fadeOutStyle);
+
+    // Si des doublons sont trouvés, demander confirmation
+    if (filesWithDuplicates.length > 0) {
+        const confirmed = await showDuplicatesDialog(filesWithDuplicates);
+
+        if (confirmed === 'upload-all') {
+            // Uploader tous les fichiers malgré les doublons
+            filesWithoutDuplicates.push(...filesWithDuplicates.map(f => f.file));
+        } else if (confirmed === 'upload-new') {
+            // Uploader seulement les fichiers sans doublons
+            // filesWithoutDuplicates reste inchangé
+        } else {
+            // Annuler complètement
+            fileInput.value = '';
+            return;
+        }
+    }
+
+    if (filesWithoutDuplicates.length === 0) {
+        ui.toast('Aucun fichier à uploader', 'info');
+        fileInput.value = '';
+        return;
+    }
+
+    // Uploader les fichiers
     const formData = new FormData();
 
-    for (let i = 0; i < files.length; i++) {
-        formData.append('files[]', files[i]);
+    for (let file of filesWithoutDuplicates) {
+        formData.append('files[]', file);
     }
 
     if (currentFolder) {
         formData.append('parent_id', currentFolder.id);
     }
+
+    const progressBar = ui.createProgressBar(`Upload de ${filesWithoutDuplicates.length} fichier(s)...`);
+    progressBar.update(10);
 
     try {
         const response = await fetch('/files/upload-multiple', {
@@ -1138,19 +1654,106 @@ async function uploadFiles(files) {
             body: formData
         });
 
+        progressBar.update(90);
         const result = await response.json();
+        progressBar.update(100);
 
         if (response.ok) {
-            alert(`✅ ${result.success} fichier(s) uploadé(s)${result.failed > 0 ? `, ${result.failed} échec(s)` : ''}`);
+            setTimeout(() => progressBar.remove(), 500);
+            if (result.failed > 0) {
+                ui.toast(`${result.success} fichier(s) uploadé(s), ${result.failed} échec(s)`, 'warning');
+            } else {
+                ui.toast(`${result.success} fichier(s) uploadé(s) avec succès`, 'success');
+            }
             fileInput.value = '';
             loadFiles(currentFolder?.id);
             loadUserData();
+            // Recharger la liste des fichiers dans le gestionnaire
+            if (allUserFiles.length > 0) {
+                loadAllFiles();
+            }
         } else {
             throw new Error(result.error || 'Upload failed');
         }
     } catch (error) {
-        alert('❌ Erreur: ' + error.message);
+        progressBar.remove();
+        ui.toast('Erreur lors de l\'upload: ' + error.message, 'error');
     }
+}
+
+// Afficher la popup de confirmation des doublons
+async function showDuplicatesDialog(filesWithDuplicates) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+        let duplicatesHtml = '';
+        for (let item of filesWithDuplicates) {
+            duplicatesHtml += `
+                <div style="margin-bottom:1.5rem;padding:1rem;background:var(--gray-50);border-radius:8px;">
+                    <div style="font-weight:600;margin-bottom:0.5rem;color:var(--gray-900);">📄 ${escapeHtml(item.file.name)}</div>
+                    <div style="font-size:0.875rem;color:var(--gray-600);margin-bottom:0.75rem;">Ce fichier existe déjà :</div>
+                    ${item.duplicates.map(dup => `
+                        <div style="padding:0.5rem;background:white;border-radius:6px;margin-bottom:0.25rem;font-size:0.875rem;">
+                            <div style="font-weight:500;">${escapeHtml(dup.filename)}</div>
+                            <div style="color:var(--gray-500);font-size:0.75rem;">${escapeHtml(dup.path)} • ${dup.uploadedAt}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'background:white;border-radius:16px;padding:2rem;max-width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);';
+        dialog.innerHTML = `
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+                <div style="font-size:2rem;">⚠️</div>
+                <div>
+                    <div style="font-size:1.25rem;font-weight:700;color:var(--gray-900);">Fichiers en double détectés</div>
+                    <div style="color:var(--gray-600);font-size:0.875rem;">${filesWithDuplicates.length} fichier(s) existe(nt) déjà</div>
+                </div>
+            </div>
+            <div style="margin-bottom:1.5rem;max-height:400px;overflow-y:auto;">
+                ${duplicatesHtml}
+            </div>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                <button id="btn-upload-all" style="flex:1;padding:0.75rem 1.5rem;background:var(--primary);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+                    Uploader quand même
+                </button>
+                <button id="btn-upload-new" style="flex:1;padding:0.75rem 1.5rem;background:var(--success);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+                    Uploader uniquement les nouveaux
+                </button>
+                <button id="btn-cancel" style="flex:1;padding:0.75rem 1.5rem;background:var(--gray-200);color:var(--gray-700);border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+                    Annuler
+                </button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        document.getElementById('btn-upload-all').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve('upload-all');
+        };
+
+        document.getElementById('btn-upload-new').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve('upload-new');
+        };
+
+        document.getElementById('btn-cancel').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve('cancel');
+        };
+
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+                resolve('cancel');
+            }
+        };
+    });
 }
 
 // Modals
@@ -1172,9 +1775,11 @@ async function createFolder() {
     const name = document.getElementById('folder-name').value.trim();
 
     if (!name) {
-        alert('Veuillez entrer un nom');
+        ui.toast('Veuillez entrer un nom', 'warning');
         return;
     }
+
+    ui.showLoader('Création du dossier...');
 
     try {
         const response = await fetch('/files/folder', {
@@ -1189,8 +1794,10 @@ async function createFolder() {
             })
         });
 
+        ui.hideLoader();
+
         if (response.ok) {
-            alert('✅ Dossier créé');
+            ui.toast('Dossier créé avec succès', 'success');
             closeModal('create-folder-modal');
             document.getElementById('folder-name').value = '';
             loadFiles(currentFolder?.id);
@@ -1198,7 +1805,8 @@ async function createFolder() {
             throw new Error('Creation failed');
         }
     } catch (error) {
-        alert('❌ Erreur lors de la création');
+        ui.hideLoader();
+        ui.toast('Erreur lors de la création du dossier', 'error');
     }
 }
 
@@ -1206,9 +1814,11 @@ async function createTextFile() {
     const filename = document.getElementById('text-filename').value.trim();
 
     if (!filename) {
-        alert('Veuillez entrer un nom');
+        ui.toast('Veuillez entrer un nom', 'warning');
         return;
     }
+
+    ui.showLoader('Création du fichier...');
 
     try {
         const response = await fetch('/files/text', {
@@ -1225,17 +1835,20 @@ async function createTextFile() {
         });
 
         const result = await response.json();
+        ui.hideLoader();
 
         if (response.ok) {
             closeModal('create-text-modal');
             document.getElementById('text-filename').value = '';
+            ui.toast('Fichier créé avec succès', 'success');
             // Ouvrir directement dans le viewer pour éditer
             window.location.href = `/viewer/${result.file.id}`;
         } else {
             throw new Error('Creation failed');
         }
     } catch (error) {
-        alert('❌ Erreur lors de la création');
+        ui.hideLoader();
+        ui.toast('Erreur lors de la création du fichier', 'error');
     }
 }
 
@@ -1322,5 +1935,186 @@ if (startParentId) {
 }
 
 initLassoSelection();
+
+// ============================================
+// Gestion de la popup des fichiers
+// ============================================
+
+let allUserFiles = [];
+let filteredUserFiles = [];
+
+async function loadAllFiles() {
+    try {
+        const response = await fetch('/files/all-with-paths', {
+            headers: { 'X-Auth-Token': token }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            allUserFiles = data.files;
+            filteredUserFiles = [...allUserFiles];
+            updateFilesManagerCount();
+            renderFilesList();
+        }
+    } catch (error) {
+        console.error('Error loading all files:', error);
+    }
+}
+
+function openFilesManager() {
+    const popup = document.getElementById('files-manager-popup');
+    const fab = document.querySelector('.files-manager-fab');
+
+    popup.classList.add('open');
+    popup.classList.remove('minimized');
+    fab.classList.add('hidden');
+
+    // Charger les fichiers si pas encore chargé
+    if (allUserFiles.length === 0) {
+        loadAllFiles();
+    }
+}
+
+function closeFilesManager() {
+    const popup = document.getElementById('files-manager-popup');
+    const fab = document.querySelector('.files-manager-fab');
+
+    popup.classList.remove('open');
+    popup.classList.remove('minimized');
+    fab.classList.remove('hidden');
+}
+
+function toggleFilesManager() {
+    const popup = document.getElementById('files-manager-popup');
+    const toggleBtn = document.getElementById('toggle-btn');
+
+    if (popup.classList.contains('minimized')) {
+        popup.classList.remove('minimized');
+        toggleBtn.textContent = '▼';
+    } else {
+        popup.classList.add('minimized');
+        toggleBtn.textContent = '▲';
+    }
+}
+
+function updateFilesManagerCount() {
+    const count = document.getElementById('files-manager-count');
+    count.textContent = `(${filteredUserFiles.length})`;
+}
+
+function filterFiles() {
+    const searchInput = document.getElementById('files-search');
+    const searchTerm = searchInput.value.toLowerCase();
+
+    if (searchTerm === '') {
+        filteredUserFiles = [...allUserFiles];
+    } else {
+        filteredUserFiles = allUserFiles.filter(file =>
+            file.filename.toLowerCase().includes(searchTerm) ||
+            file.path.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    updateFilesManagerCount();
+    renderFilesList();
+}
+
+function renderFilesList() {
+    const listContainer = document.getElementById('files-manager-list');
+
+    if (filteredUserFiles.length === 0) {
+        listContainer.innerHTML = '<div class="files-manager-loading">Aucun fichier trouvé</div>';
+        return;
+    }
+
+    const html = filteredUserFiles.map(file => {
+        const icon = file.isFolder ? '📁' : getFileIcon(file);
+        const size = file.isFolder ? '' : formatSize(file.size);
+
+        return `
+            <div class="files-manager-item" onclick="navigateToFileInManager(${file.id}, ${file.isFolder})" title="${file.path}">
+                <div class="files-manager-item-icon">${icon}</div>
+                <div class="files-manager-item-info">
+                    <div class="files-manager-item-name">${escapeHtml(file.filename)}</div>
+                    <div class="files-manager-item-path">${escapeHtml(file.path)}</div>
+                </div>
+                <div class="files-manager-item-meta">
+                    <div>${size}</div>
+                    <div>${formatDate(file.uploadedAt)}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    listContainer.innerHTML = html;
+}
+
+function navigateToFileInManager(fileId, isFolder) {
+    closeFilesManager();
+
+    if (isFolder) {
+        navigateToFolder(fileId);
+    } else {
+        // Ouvrir le fichier dans le viewer
+        const file = allUserFiles.find(f => f.id === fileId);
+        if (file) {
+            window.location.href = `/viewer/${fileId}`;
+        }
+    }
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Aujourd\'hui';
+    if (diffDays === 1) return 'Hier';
+    if (diffDays < 7) return `Il y a ${diffDays}j`;
+    if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)}sem`;
+    if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)}m`;
+    return `Il y a ${Math.floor(diffDays / 365)}a`;
+}
+
+// Rendre la popup draggable
+let isDragging = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+const popup = document.getElementById('files-manager-popup');
+const header = popup.querySelector('.files-manager-header');
+
+header.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+        return; // Ne pas drag si on clique sur un bouton
+    }
+
+    isDragging = true;
+    const rect = popup.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    popup.style.transition = 'none';
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+
+    const x = e.clientX - dragOffsetX;
+    const y = e.clientY - dragOffsetY;
+
+    popup.style.left = x + 'px';
+    popup.style.top = y + 'px';
+    popup.style.right = 'auto';
+    popup.style.bottom = 'auto';
+});
+
+document.addEventListener('mouseup', () => {
+    if (isDragging) {
+        isDragging = false;
+        popup.style.transition = 'all 0.3s ease';
+    }
+});
+
 </script>
 {% endblock %}

@@ -45,9 +45,16 @@ class File
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $thumbnail = null; // Chemin vers la miniature
 
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $hash = null; // Hash SHA256 du fichier pour détecter les doublons
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $processing = false; // Indique si le fichier est en cours de traitement (compression, miniatures)
+
     public function __construct()
     {
         $this->uploadedAt = new \DateTimeImmutable();
+        $this->processing = false;
     }
 
     public function getId(): ?int
@@ -167,6 +174,28 @@ class File
     public function setThumbnail(?string $thumbnail): static
     {
         $this->thumbnail = $thumbnail;
+        return $this;
+    }
+
+    public function getHash(): ?string
+    {
+        return $this->hash;
+    }
+
+    public function setHash(?string $hash): static
+    {
+        $this->hash = $hash;
+        return $this;
+    }
+
+    public function isProcessing(): bool
+    {
+        return $this->processing;
+    }
+
+    public function setProcessing(bool $processing): static
+    {
+        $this->processing = $processing;
         return $this;
     }
 

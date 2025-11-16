@@ -40,7 +40,7 @@ class RawFileUploadService
         }
 
         // Créer le dossier uploads s'il n'existe pas
-        $uploadDir = $this->projectDir . '/var/uploads';
+        $uploadDir = $this->projectDir . '/public/uploads';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
@@ -53,6 +53,9 @@ class RawFileUploadService
 
         $storedName = uniqid() . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
         $destination = $uploadDir . '/' . $storedName;
+
+        // Calculer le hash SHA256 du fichier AVANT de le déplacer
+        $hash = hash_file('sha256', $tmpName);
 
         // Déplacer le fichier
         if (!move_uploaded_file($tmpName, $destination)) {
@@ -68,12 +71,13 @@ class RawFileUploadService
             'originalName' => $originalName,
             'mimeType' => $mimeType,
             'size' => $size,
+            'hash' => $hash,
         ];
     }
 
     public function delete(string $storedName): void
     {
-        $uploadDir = $this->projectDir . '/var/uploads';
+        $uploadDir = $this->projectDir . '/public/uploads';
         $filePath = $uploadDir . '/' . $storedName;
 
         if (file_exists($filePath)) {
@@ -83,7 +87,7 @@ class RawFileUploadService
 
     public function getFilePath(string $storedName): string
     {
-        $uploadDir = $this->projectDir . '/var/uploads';
+        $uploadDir = $this->projectDir . '/public/uploads';
         return $uploadDir . '/' . $storedName;
     }
 

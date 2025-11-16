@@ -9,8 +9,8 @@ class ThumbnailService
 
     public function __construct(string $projectDir)
     {
-        $this->uploadDirectory = $projectDir . '/var/uploads';
-        $this->thumbnailDirectory = $projectDir . '/var/uploads/thumbnails';
+        $this->uploadDirectory = $projectDir . '/public/uploads';
+        $this->thumbnailDirectory = $projectDir . '/public/uploads/thumbnails';
 
         if (!is_dir($this->thumbnailDirectory)) {
             mkdir($this->thumbnailDirectory, 0777, true);
