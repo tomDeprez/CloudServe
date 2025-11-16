@@ -2240,13 +2240,14 @@ async function findOrCreateImagesFolder() {
         throw new Error('Impossible de charger les fichiers');
     }
 
-    const allFiles = await response.json();
+    const data = await response.json();
+    const allFiles = data.files || [];
 
     // Chercher le dossier "Images" à la racine
     const imagesFolder = allFiles.find(f =>
-        f.type === 'folder' &&
+        f.isFolder &&
         f.filename.toLowerCase() === 'images' &&
-        !f.parent
+        !f.path.includes('/')
     );
 
     if (imagesFolder) {
@@ -2301,8 +2302,9 @@ async function createFolderStructure(parentId, folderPaths) {
         headers: { 'X-Auth-Token': token }
     });
 
-    const allFiles = await response.json();
-    const existingFolders = allFiles.filter(f => f.type === 'folder');
+    const data = await response.json();
+    const allFiles = data.files || [];
+    const existingFolders = allFiles.filter(f => f.isFolder);
 
     // Créer les dossiers manquants
     for (const folderPath of folderPaths) {
@@ -2314,16 +2316,16 @@ async function createFolderStructure(parentId, folderPaths) {
             currentPath = currentPath ? `${currentPath}/${part}` : part;
 
             // Vérifier si le dossier existe déjà
-            const parentFolderId = folderMap.get(parentPath);
+            const fullPath = `Images/${currentPath}`;
             const existing = existingFolders.find(f =>
-                f.filename.toLowerCase() === part.toLowerCase() &&
-                f.parent?.id === parentFolderId
+                f.path.toLowerCase() === fullPath.toLowerCase()
             );
 
             if (existing) {
                 folderMap.set(currentPath, existing.id);
             } else {
                 // Créer le dossier
+                const parentFolderId = folderMap.get(parentPath);
                 const createResponse = await fetch('/files/folder', {
                     method: 'POST',
                     headers: {
