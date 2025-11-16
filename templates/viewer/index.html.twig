@@ -1,0 +1,474 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Viewer - CloudServe{% endblock %}
+
+{% block stylesheets %}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        overflow: hidden;
+    }
+
+    .viewer-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        background: #000;
+    }
+
+    .viewer-header {
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        z-index: 100;
+    }
+
+    .viewer-header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .viewer-header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .viewer-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin: 0;
+        max-width: 400px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .viewer-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .viewer-media {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .viewer-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        border: none;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+        z-index: 10;
+    }
+
+    .viewer-nav:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    .viewer-nav:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .viewer-nav-prev {
+        left: 2rem;
+    }
+
+    .viewer-nav-next {
+        right: 2rem;
+    }
+
+    .text-editor {
+        width: 90%;
+        max-width: 1200px;
+        height: 80%;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 2rem;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+        border: none;
+        border-radius: 8px;
+        resize: none;
+        overflow: auto;
+    }
+
+    .text-editor:focus {
+        outline: 2px solid var(--primary);
+    }
+
+    .pdf-viewer {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    .btn-viewer {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-viewer:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .btn-close {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .btn-close:hover {
+        background: rgba(239, 68, 68, 0.4);
+    }
+
+    .loading {
+        color: white;
+        font-size: 1.25rem;
+        text-align: center;
+    }
+
+    .error-message {
+        color: #ef4444;
+        background: rgba(239, 68, 68, 0.1);
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        max-width: 500px;
+    }
+
+    @media (max-width: 768px) {
+        .viewer-nav {
+            width: 50px;
+            height: 50px;
+            font-size: 1.25rem;
+        }
+
+        .viewer-nav-prev {
+            left: 1rem;
+        }
+
+        .viewer-nav-next {
+            right: 1rem;
+        }
+
+        .viewer-title {
+            font-size: 1rem;
+            max-width: 200px;
+        }
+
+        .text-editor {
+            width: 95%;
+            height: 85%;
+            padding: 1rem;
+            font-size: 13px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="viewer-container">
+    <div class="viewer-header">
+        <div class="viewer-header-left">
+            <button class="btn-viewer btn-close" onclick="closeViewer()">✕ Fermer</button>
+            <h1 class="viewer-title" id="file-title">Chargement...</h1>
+        </div>
+        <div class="viewer-header-right">
+            <button class="btn-viewer" id="btn-save" style="display:none" onclick="saveTextFile()">💾 Enregistrer</button>
+            <button class="btn-viewer" onclick="downloadFile()">⬇️ Télécharger</button>
+        </div>
+    </div>
+
+    <div class="viewer-content" id="viewer-content">
+        <div class="loading">Chargement du fichier...</div>
+
+        <button class="viewer-nav viewer-nav-prev" id="nav-prev" onclick="navigateFile('prev')" style="display:none">‹</button>
+        <button class="viewer-nav viewer-nav-next" id="nav-next" onclick="navigateFile('next')" style="display:none">›</button>
+    </div>
+</div>
+
+<script>
+const fileId = {{ fileId }};
+const token = localStorage.getItem('auth_token');
+let currentFile = null;
+let allFiles = [];
+let currentIndex = -1;
+let isEditing = false;
+
+// Récupérer le parent_id de l'URL pour garder le contexte du dossier
+const urlParams = new URLSearchParams(window.location.search);
+const parentId = urlParams.get('parent_id');
+
+if (!token) {
+    window.location.href = '/login-page';
+}
+
+function closeViewer() {
+    if (isEditing) {
+        if (!confirm('Vous avez des modifications non enregistrées. Voulez-vous vraiment quitter ?')) {
+            return;
+        }
+    }
+    // Retourner au bon dossier
+    if (parentId) {
+        window.location.href = `/dashboard?parent_id=${parentId}`;
+    } else {
+        window.location.href = '/dashboard';
+    }
+}
+
+async function loadFile(id) {
+    const content = document.getElementById('viewer-content');
+    content.innerHTML = '<div class="loading">Chargement...</div>';
+
+    try {
+        // Charger les informations du fichier
+        const fileResponse = await fetch(`/files/${id}/view`, {
+            headers: { 'X-Auth-Token': token }
+        });
+
+        if (!fileResponse.ok) {
+            throw new Error('Impossible de charger le fichier');
+        }
+
+        const contentType = fileResponse.headers.get('Content-Type');
+
+        // Charger la liste de tous les fichiers pour la navigation
+        await loadAllFiles();
+
+        // Déterminer le type de fichier
+        if (contentType.includes('application/json')) {
+            const data = await fileResponse.json();
+            currentFile = data;
+
+            if (data.type === 'text') {
+                displayTextFile(data);
+            }
+        } else if (contentType.startsWith('image/')) {
+            displayImage(id);
+        } else if (contentType.startsWith('video/')) {
+            displayVideo(id);
+        } else if (contentType.startsWith('audio/')) {
+            displayAudio(id);
+        } else if (contentType.includes('pdf')) {
+            displayPdf(id);
+        } else {
+            // Fichier non visualisable
+            content.innerHTML = `
+                <div class="error-message">
+                    <p>⚠️ Ce type de fichier ne peut pas être visualisé directement.</p>
+                    <button class="btn-viewer" onclick="downloadFile()">⬇️ Télécharger le fichier</button>
+                </div>
+            `;
+        }
+
+        updateTitle();
+        updateNavigation();
+
+    } catch (error) {
+        content.innerHTML = `
+            <div class="error-message">
+                <p>❌ Erreur lors du chargement du fichier</p>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+async function loadAllFiles() {
+    try {
+        // Charger les fichiers du même dossier que le fichier actuel
+        const url = parentId ? `/files?parent_id=${parentId}` : '/files';
+        const response = await fetch(url, {
+            headers: { 'X-Auth-Token': token }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            allFiles = data.files.filter(f => !f.isFolder);
+            currentIndex = allFiles.findIndex(f => f.id === fileId);
+        }
+    } catch (error) {
+        console.error('Error loading files list:', error);
+    }
+}
+
+function displayImage(id) {
+    const content = document.getElementById('viewer-content');
+    content.innerHTML = `
+        <img src="/files/${id}/view" class="viewer-media" alt="Image">
+        <button class="viewer-nav viewer-nav-prev" id="nav-prev" onclick="navigateFile('prev')">‹</button>
+        <button class="viewer-nav viewer-nav-next" id="nav-next" onclick="navigateFile('next')">›</button>
+    `;
+}
+
+function displayVideo(id) {
+    const content = document.getElementById('viewer-content');
+    content.innerHTML = `
+        <video controls class="viewer-media" autoplay>
+            <source src="/files/${id}/view" type="video/mp4">
+            Votre navigateur ne supporte pas la lecture de vidéos.
+        </video>
+        <button class="viewer-nav viewer-nav-prev" id="nav-prev" onclick="navigateFile('prev')">‹</button>
+        <button class="viewer-nav viewer-nav-next" id="nav-next" onclick="navigateFile('next')">›</button>
+    `;
+}
+
+function displayAudio(id) {
+    const content = document.getElementById('viewer-content');
+    content.innerHTML = `
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 4rem; margin-bottom: 2rem;">🎵</div>
+            <audio controls autoplay style="width: 90%; max-width: 600px;">
+                <source src="/files/${id}/view">
+                Votre navigateur ne supporte pas la lecture audio.
+            </audio>
+        </div>
+        <button class="viewer-nav viewer-nav-prev" id="nav-prev" onclick="navigateFile('prev')">‹</button>
+        <button class="viewer-nav viewer-nav-next" id="nav-next" onclick="navigateFile('next')">›</button>
+    `;
+}
+
+function displayPdf(id) {
+    const content = document.getElementById('viewer-content');
+    content.innerHTML = `
+        <iframe src="/files/${id}/view" class="pdf-viewer"></iframe>
+        <button class="viewer-nav viewer-nav-prev" id="nav-prev" onclick="navigateFile('prev')">‹</button>
+        <button class="viewer-nav viewer-nav-next" id="nav-next" onclick="navigateFile('next')">›</button>
+    `;
+}
+
+function displayTextFile(data) {
+    const content = document.getElementById('viewer-content');
+    content.innerHTML = `
+        <textarea class="text-editor" id="text-content" oninput="markAsEdited()">${data.content || ''}</textarea>
+        <button class="viewer-nav viewer-nav-prev" id="nav-prev" onclick="navigateFile('prev')">‹</button>
+        <button class="viewer-nav viewer-nav-next" id="nav-next" onclick="navigateFile('next')">›</button>
+    `;
+
+    document.getElementById('btn-save').style.display = 'flex';
+    currentFile = data;
+}
+
+function markAsEdited() {
+    isEditing = true;
+}
+
+async function saveTextFile() {
+    const content = document.getElementById('text-content').value;
+
+    try {
+        const response = await fetch(`/files/${fileId}/content`, {
+            method: 'PUT',
+            headers: {
+                'X-Auth-Token': token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content })
+        });
+
+        if (response.ok) {
+            isEditing = false;
+            alert('✅ Fichier enregistré avec succès');
+        } else {
+            const error = await response.json();
+            alert('❌ Erreur: ' + (error.error || 'Impossible de sauvegarder'));
+        }
+    } catch (error) {
+        alert('❌ Erreur de connexion au serveur');
+    }
+}
+
+function updateTitle() {
+    if (currentFile && currentFile.filename) {
+        document.getElementById('file-title').textContent = currentFile.filename;
+    } else if (allFiles[currentIndex]) {
+        document.getElementById('file-title').textContent = allFiles[currentIndex].filename;
+    }
+}
+
+function updateNavigation() {
+    const prevBtn = document.getElementById('nav-prev');
+    const nextBtn = document.getElementById('nav-next');
+
+    if (prevBtn && nextBtn) {
+        prevBtn.disabled = currentIndex <= 0;
+        nextBtn.disabled = currentIndex >= allFiles.length - 1;
+    }
+}
+
+function navigateFile(direction) {
+    if (isEditing && !confirm('Vous avez des modifications non enregistrées. Continuer ?')) {
+        return;
+    }
+
+    const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+
+    if (newIndex >= 0 && newIndex < allFiles.length) {
+        currentIndex = newIndex;
+        const newFileId = allFiles[currentIndex].id;
+        // Passer le parent_id pour garder le contexte du dossier
+        const url = parentId ? `/viewer/${newFileId}?parent_id=${parentId}` : `/viewer/${newFileId}`;
+        window.location.href = url;
+    }
+}
+
+function downloadFile() {
+    window.location.href = `/files/${fileId}/download`;
+}
+
+// Navigation au clavier
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') {
+        navigateFile('prev');
+    } else if (e.key === 'ArrowRight') {
+        navigateFile('next');
+    } else if (e.key === 'Escape') {
+        closeViewer();
+    }
+});
+
+// Charger le fichier au démarrage
+loadFile(fileId);
+</script>
+{% endblock %}

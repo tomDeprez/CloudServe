@@ -345,6 +345,7 @@
             <span>CloudServe<span class="admin-badge">ADMIN</span></span>
         </div>
         <div class="nav-actions">
+            <button onclick="regenerateThumbnails()" class="btn btn-success btn-sm" id="regen-btn">🖼️ Régénérer miniatures</button>
             <a href="/dashboard" class="btn btn-primary btn-sm">📊 Dashboard</a>
             <button onclick="logout()" class="btn btn-danger btn-sm">Déconnexion</button>
         </div>
@@ -661,6 +662,46 @@ async function activateUser(userId) {
         }
     } catch (error) {
         showMessage('Erreur de connexion au serveur', true);
+    }
+}
+
+async function regenerateThumbnails() {
+    const btn = document.getElementById('regen-btn');
+    const originalText = btn.innerHTML;
+
+    if (!confirm('⚠️ Régénérer toutes les miniatures manquantes pour les images ?\n\nCela peut prendre quelques secondes...')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Génération...';
+
+    try {
+        const response = await fetch('/admin/regenerate-thumbnails', {
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': token
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage(data.message || '✅ Miniatures régénérées avec succès');
+            btn.innerHTML = '✅ Terminé !';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 3000);
+        } else {
+            showMessage(data.error || 'Erreur lors de la régénération', true);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        showMessage('Erreur de connexion au serveur', true);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 </script>

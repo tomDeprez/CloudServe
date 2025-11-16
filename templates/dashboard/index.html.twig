@@ -27,6 +27,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 1rem;
+        flex-wrap: wrap;
     }
 
     @media (min-width: 768px) {
@@ -58,7 +59,7 @@
     .user-info {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.5rem;
     }
 
     .user-email {
@@ -78,6 +79,7 @@
         font-size: 0.875rem;
     }
 
+    /* Stats */
     .stats-grid {
         display: grid;
         grid-template-columns: 1fr;
@@ -111,13 +113,6 @@
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
     }
 
-    .stat-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-
     .stat-icon {
         width: 48px;
         height: 48px;
@@ -127,6 +122,7 @@
         align-items: center;
         justify-content: center;
         font-size: 1.5rem;
+        margin-bottom: 1rem;
     }
 
     .stat-label {
@@ -135,36 +131,58 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
     }
 
     .stat-value {
         font-size: 2rem;
         font-weight: 700;
         color: var(--gray-900);
-        margin: 0.5rem 0;
     }
 
-    .progress-bar {
-        height: 8px;
-        background: var(--gray-100);
-        border-radius: 4px;
-        overflow: hidden;
-        margin: 1rem 0 0.5rem;
+    /* Breadcrumb */
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
     }
 
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--primary), var(--secondary));
-        transition: width 0.3s ease;
-        border-radius: 4px;
-    }
-
-    .progress-text {
-        font-size: 0.875rem;
+    .breadcrumb-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         color: var(--gray-600);
+        font-size: 0.875rem;
     }
 
-    .section-header {
+    .breadcrumb-item a {
+        color: var(--primary);
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .breadcrumb-item a:hover {
+        text-decoration: underline;
+    }
+
+    /* Upload Zone */
+    .upload-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 2px dashed var(--gray-300);
+        transition: all 0.3s;
+    }
+
+    .upload-card.drag-over {
+        border-color: var(--primary);
+        background: var(--primary-light);
+    }
+
+    .upload-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -173,101 +191,121 @@
         gap: 1rem;
     }
 
-    .section-title {
-        font-size: 1.5rem;
+    .upload-title {
+        font-size: 1.25rem;
         font-weight: 700;
         color: var(--gray-900);
         margin: 0;
     }
 
-    .upload-card {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-        border-radius: 16px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        color: white;
-    }
-
-    .upload-form {
+    .upload-actions {
         display: flex;
-        flex-direction: column;
-        gap: 1rem;
+        gap: 0.5rem;
+        flex-wrap: wrap;
     }
 
-    @media (min-width: 768px) {
-        .upload-form {
-            flex-direction: row;
-            align-items: flex-end;
-        }
-    }
-
-    .upload-form .form-group {
-        flex: 1;
-        margin: 0;
-    }
-
-    .upload-form label {
-        color: rgba(255, 255, 255, 0.9);
-    }
-
-    .upload-form input[type="file"] {
-        background: rgba(255, 255, 255, 0.15);
-        border: 2px dashed rgba(255, 255, 255, 0.3);
-        color: white;
-    }
-
-    .upload-form input[type="file"]::file-selector-button {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
+    .upload-zone {
+        text-align: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        border-radius: 12px;
         cursor: pointer;
-        margin-right: 1rem;
+        transition: all 0.3s;
+    }
+
+    .upload-zone:hover {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+    }
+
+    .upload-zone-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .upload-zone-text {
+        color: var(--gray-700);
+        font-size: 1.125rem;
         font-weight: 600;
+        margin-bottom: 0.5rem;
     }
 
-    .btn-light {
-        background: white;
-        color: var(--primary);
+    .upload-zone-hint {
+        color: var(--gray-500);
+        font-size: 0.875rem;
     }
 
-    .btn-light:hover {
-        background: var(--gray-50);
-        transform: translateY(-2px);
+    #file-input {
+        display: none;
     }
 
+    /* Files Grid */
     .files-grid {
         display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    @media (max-width: 640px) {
+        .files-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        }
     }
 
     .file-card {
         background: white;
         border-radius: 12px;
-        padding: 1.25rem;
+        padding: 1rem;
         border: 1px solid var(--gray-100);
-        transition: all 0.2s;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
     }
 
     .file-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
         border-color: var(--primary);
-        transform: translateX(4px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
     }
 
-    .file-info {
-        flex: 1;
-        min-width: 0;
+    .file-card.dragging {
+        opacity: 0.5;
+    }
+
+    .file-card.selected {
+        border-color: var(--primary);
+        border-width: 3px;
+        background: rgba(99, 102, 241, 0.08);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    .file-thumbnail {
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        background: var(--gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .file-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .file-thumbnail-icon {
+        font-size: 3rem;
     }
 
     .file-name {
         font-weight: 600;
         color: var(--gray-900);
+        font-size: 0.875rem;
         margin-bottom: 0.25rem;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -275,31 +313,46 @@
     }
 
     .file-meta {
-        font-size: 0.875rem;
-        color: var(--gray-500);
-    }
-
-    .file-icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, var(--gray-100), var(--gray-200));
-        border-radius: 10px;
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        flex-shrink: 0;
+        font-size: 0.75rem;
+        color: var(--gray-500);
     }
 
     .file-actions {
         display: flex;
-        gap: 0.5rem;
-        flex-shrink: 0;
+        gap: 0.25rem;
+        margin-top: 0.5rem;
     }
 
+    .file-action-btn {
+        background: var(--gray-100);
+        border: none;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .file-action-btn:hover {
+        background: var(--gray-200);
+    }
+
+    .file-action-btn.delete {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger);
+    }
+
+    .file-action-btn.delete:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+    /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 3rem 1rem;
+        padding: 4rem 2rem;
         color: var(--gray-400);
     }
 
@@ -311,6 +364,180 @@
     .empty-state-text {
         color: var(--gray-600);
         font-size: 1.125rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state-hint {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: var(--gray-900);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--gray-700);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .btn-secondary {
+        background: var(--gray-200);
+        color: var(--gray-700);
+    }
+
+    .btn-secondary:hover {
+        background: var(--gray-300);
+    }
+
+    /* Barre d'actions multiples */
+    .multi-action-bar {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 1rem 2rem;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        display: none;
+        align-items: center;
+        gap: 1rem;
+        z-index: 1000;
+        border: 1px solid var(--gray-200);
+    }
+
+    .multi-action-bar.active {
+        display: flex;
+    }
+
+    .multi-action-count {
+        font-weight: 600;
+        color: var(--gray-700);
+        padding: 0.5rem 1rem;
+        background: var(--gray-100);
+        border-radius: 8px;
+    }
+
+    .multi-action-btns {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .multi-action-btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .multi-action-btn.download {
+        background: var(--primary);
+        color: white;
+    }
+
+    .multi-action-btn.download:hover {
+        background: var(--primary-dark);
+    }
+
+    .multi-action-btn.delete {
+        background: var(--danger);
+        color: white;
+    }
+
+    .multi-action-btn.delete:hover {
+        background: #991b1b;
+    }
+
+    .multi-action-btn.cancel {
+        background: var(--gray-200);
+        color: var(--gray-700);
+    }
+
+    .multi-action-btn.cancel:hover {
+        background: var(--gray-300);
+    }
+
+    /* Rectangle de sélection */
+    .selection-box {
+        position: fixed;
+        border: 2px solid var(--primary);
+        background: rgba(99, 102, 241, 0.1);
+        pointer-events: none;
+        z-index: 999;
+        display: none;
+    }
+
+    .selection-box.active {
+        display: block;
+    }
+
+    .files-grid {
+        user-select: none;
     }
 </style>
 {% endblock %}
@@ -324,12 +551,14 @@
         </div>
         <div class="user-info">
             <span class="user-email" id="user-email">Chargement...</span>
+            <a href="/admin/dashboard" class="btn btn-primary btn-sm" id="admin-link" style="display:none">👑 Admin</a>
             <button onclick="logout()" class="btn btn-danger btn-sm">Déconnexion</button>
         </div>
     </div>
 </nav>
 
 <div class="container">
+    <!-- Stats -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon">📁</div>
@@ -337,195 +566,761 @@
             <div class="stat-value" id="files-count">0</div>
         </div>
 
-        <div class="stat-card" style="grid-column: span 1;">
+        <div class="stat-card">
+            <div class="stat-icon">💾</div>
             <div class="stat-label">Espace utilisé</div>
             <div class="stat-value" id="used-space">0 MB</div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="quota-progress" style="width: 0%"></div>
-            </div>
-            <div class="progress-text" id="quota-info">0% de 0 GB</div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-icon">💾</div>
-            <div class="stat-label">Quota total</div>
-            <div class="stat-value" id="total-quota">2 GB</div>
+            <div class="stat-icon">📊</div>
+            <div class="stat-label">Quota</div>
+            <div class="stat-value" id="quota-percent">0%</div>
         </div>
     </div>
 
-    <div class="upload-card">
-        <h2 style="color: white; margin-bottom: 1rem;">📤 Uploader un fichier</h2>
-        <div id="upload-error" class="alert alert-danger" style="display: none;"></div>
-        <div id="upload-success" class="alert alert-success" style="display: none; background: rgba(255, 255, 255, 0.2); border-left-color: white; color: white;"></div>
 
-        <form id="upload-form" class="upload-form">
-            <div class="form-group" style="flex: 1;">
-                <label for="file-input">Choisir un fichier</label>
-                <input type="file" id="file-input" class="form-control" required>
+    <!-- Upload Card -->
+    <div class="card upload-card" id="upload-card">
+        <div class="upload-header">
+            <h2 class="upload-title">📤 Uploader des fichiers</h2>
+            <div class="upload-actions">
+                <button class="btn btn-primary btn-sm" onclick="document.getElementById('file-input').click()">
+                    📁 Choisir fichiers
+                </button>
             </div>
-            <button type="submit" class="btn btn-light">
-                <span>Uploader</span>
-                <span>↑</span>
-            </button>
-        </form>
-    </div>
-
-    <div class="card">
-        <div class="section-header">
-            <h2 class="section-title">📂 Mes fichiers</h2>
         </div>
 
-        <div class="files-grid" id="files-list">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <div class="upload-zone-icon">☁️</div>
+            <div class="upload-zone-text">Glissez vos fichiers ici</div>
+            <div class="upload-zone-hint">ou cliquez pour sélectionner (plusieurs fichiers supportés)</div>
+        </div>
+
+        <input type="file" id="file-input" multiple>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb" id="breadcrumb">
+        <div class="breadcrumb-item">
+            <a onclick="navigateToFolder(null)">🏠 Racine</a>
+        </div>
+    </div>
+    <!-- Files -->
+    <div class="card">
+                <div class="upload-actions">
+                <button class="btn btn-success btn-sm" onclick="showCreateFolderModal()">
+                    📁+ Nouveau dossier
+                </button>
+                <button class="btn btn-success btn-sm" onclick="showCreateTextFileModal()">
+                    📄+ Nouveau fichier
+                </button>
+            </div>
+        <div class="files-grid" id="files-grid">
             <div class="empty-state">
-                <div class="empty-state-icon">📭</div>
-                <div class="empty-state-text">Chargement...</div>
+                <div class="empty-state-icon">📂</div>
+                <div class="empty-state-text">Aucun fichier</div>
+                <div class="empty-state-hint">Commencez par uploader des fichiers</div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Modal Créer Dossier -->
+<div class="modal" id="create-folder-modal">
+    <div class="modal-content">
+        <h3 class="modal-title">📁 Nouveau dossier</h3>
+        <div class="form-group">
+            <label class="form-label">Nom du dossier</label>
+            <input type="text" class="form-input" id="folder-name" placeholder="Mon dossier">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('create-folder-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="createFolder()">Créer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Créer Fichier Texte -->
+<div class="modal" id="create-text-modal">
+    <div class="modal-content">
+        <h3 class="modal-title">📄 Nouveau fichier texte</h3>
+        <div class="form-group">
+            <label class="form-label">Nom du fichier</label>
+            <input type="text" class="form-input" id="text-filename" placeholder="notes.txt">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('create-text-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="createTextFile()">Créer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Barre d'actions multiples -->
+<div class="multi-action-bar" id="multi-action-bar">
+    <div class="multi-action-count">
+        <span id="selected-count">0</span> fichier(s) sélectionné(s)
+    </div>
+    <div class="multi-action-btns">
+        <button class="multi-action-btn download" onclick="downloadSelectedFiles()">
+            ⬇️ Télécharger
+        </button>
+        <button class="multi-action-btn delete" onclick="deleteSelectedFiles()">
+            🗑️ Supprimer
+        </button>
+        <button class="multi-action-btn cancel" onclick="clearSelection()">
+            ✕ Tout désélectionner
+        </button>
+    </div>
+</div>
+
+<!-- Rectangle de sélection -->
+<div class="selection-box" id="selection-box"></div>
+
 <script>
 const token = localStorage.getItem('auth_token');
+let currentFolder = null;
+let allFiles = [];
+let userData = null;
+let selectedFiles = new Set();
+
+// Variables pour la sélection par rectangle
+let isSelecting = false;
+let selectionStart = { x: 0, y: 0 };
+let selectionBox = null;
+
+// Variables pour le drag & drop de fichiers multiples
+let draggedFiles = new Set();
 
 if (!token) {
     window.location.href = '/login-page';
 }
 
+// Charger les données utilisateur
 async function loadUserData() {
     try {
-        const userResponse = await fetch('/me', {
+        const response = await fetch('/me', {
             headers: { 'X-Auth-Token': token }
         });
 
-        if (!userResponse.ok) {
+        if (!response.ok) {
             window.location.href = '/login-page';
             return;
         }
 
-        const userData = await userResponse.json();
+        userData = await response.json();
         document.getElementById('user-email').textContent = userData.email;
 
-        const usedSpaceMB = (userData.usedSpace / 1024 / 1024).toFixed(2);
-        const quotaGB = (userData.quota / 1024 / 1024 / 1024).toFixed(2);
-        const quotaPercent = ((userData.usedSpace / userData.quota) * 100).toFixed(2);
-
-        document.getElementById('used-space').textContent = usedSpaceMB + ' MB';
-        document.getElementById('total-quota').textContent = quotaGB + ' GB';
-        document.getElementById('quota-progress').style.width = quotaPercent + '%';
-        document.getElementById('quota-info').textContent = quotaPercent + '% de ' + quotaGB + ' GB';
-
-        const filesResponse = await fetch('/files', {
-            headers: { 'X-Auth-Token': token }
-        });
-
-        if (filesResponse.ok) {
-            const filesData = await filesResponse.json();
-            document.getElementById('files-count').textContent = filesData.count;
-
-            const filesList = document.getElementById('files-list');
-            if (filesData.files.length === 0) {
-                filesList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
-                        <div class="empty-state-text">Aucun fichier. Uploadez votre premier fichier !</div>
-                    </div>
-                `;
-            } else {
-                filesList.innerHTML = filesData.files.map(file => `
-                    <div class="file-card" data-file-id="${file.id}">
-                        <div class="file-icon">📄</div>
-                        <div class="file-info">
-                            <div class="file-name">${file.filename}</div>
-                            <div class="file-meta">
-                                ${(file.size / 1024 / 1024).toFixed(2)} MB • ${file.uploadedAt}
-                            </div>
-                        </div>
-                        <div class="file-actions">
-                            <a href="/files/${file.id}/download" class="btn btn-success btn-sm" download>⬇️</a>
-                            <button onclick="deleteFile(${file.id})" class="btn btn-danger btn-sm">🗑️</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
+        if (userData.roles.includes('ROLE_ADMIN')) {
+            document.getElementById('admin-link').style.display = 'flex';
         }
+
+        updateStats();
     } catch (error) {
-        console.error('Erreur:', error);
+        console.error('Error loading user data:', error);
         window.location.href = '/login-page';
     }
 }
 
-loadUserData();
+function updateStats() {
+    if (!userData) return;
 
-document.getElementById('upload-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
+    const usedMB = (parseInt(userData.usedSpace) / 1024 / 1024).toFixed(2);
+    const quotaGB = (parseInt(userData.quota) / 1024 / 1024 / 1024).toFixed(2);
+    const percent = ((parseInt(userData.usedSpace) / parseInt(userData.quota)) * 100).toFixed(1);
 
-    const fileInput = document.getElementById('file-input');
-    const errorDiv = document.getElementById('upload-error');
-    const successDiv = document.getElementById('upload-success');
+    document.getElementById('used-space').textContent = `${usedMB} MB`;
+    document.getElementById('quota-percent').textContent = `${percent}%`;
+}
 
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
+// Charger les fichiers
+async function loadFiles(folderId = null) {
+    try {
+        const url = folderId ? `/files?parent_id=${folderId}` : '/files';
+        const response = await fetch(url, {
+            headers: { 'X-Auth-Token': token }
+        });
 
-    if (!fileInput.files[0]) {
+        if (!response.ok) throw new Error('Failed to load files');
+
+        const data = await response.json();
+        allFiles = data.files;
+        currentFolder = data.current_folder;
+
+        document.getElementById('files-count').textContent = data.count;
+
+        renderBreadcrumb();
+        renderFiles();
+    } catch (error) {
+        console.error('Error loading files:', error);
+        alert('❌ Erreur lors du chargement des fichiers');
+    }
+}
+
+function renderBreadcrumb() {
+    const breadcrumb = document.getElementById('breadcrumb');
+    breadcrumb.innerHTML = '<div class="breadcrumb-item"><a onclick="navigateToFolder(null)">🏠 Racine</a></div>';
+
+    if (currentFolder) {
+        breadcrumb.innerHTML += `
+            <div class="breadcrumb-item">›</div>
+            <div class="breadcrumb-item">${currentFolder.name}</div>
+        `;
+    }
+}
+
+function renderFiles() {
+    const grid = document.getElementById('files-grid');
+
+    if (allFiles.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📂</div>
+                <div class="empty-state-text">Aucun fichier</div>
+                <div class="empty-state-hint">Commencez par uploader des fichiers</div>
+            </div>
+        `;
         return;
     }
 
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
+    grid.innerHTML = allFiles.map(file => {
+        const icon = getFileIcon(file);
+        // Extraire le nom du fichier miniature depuis le chemin (ex: "thumbnails/thumb_xxx.png" -> "thumb_xxx.png")
+        const thumbnail = file.thumbnail ? `/uploads/thumbnails/${file.thumbnail.replace('thumbnails/', '')}` : null;
+        const escapedFilename = escapeHtml(file.filename);
+
+        return `
+            <div class="file-card ${selectedFiles.has(file.id) ? 'selected' : ''}" data-file-id="${file.id}"
+                 draggable="true"
+                 ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)"
+                 ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+                 onclick="handleFileClick(event, ${file.id})">
+                <div class="file-thumbnail" onclick="event.stopPropagation(); openFile(${file.id}, '${file.type}', ${file.isFolder})">
+                    ${thumbnail ? `<img src="${thumbnail}" alt="${escapedFilename}">` : `<div class="file-thumbnail-icon">${icon}</div>`}
+                </div>
+                <div class="file-name" title="${file.filename}">${file.filename}</div>
+                <div class="file-meta">
+                    <span>${formatSize(file.size)}</span>
+                    <span>${file.type}</span>
+                </div>
+                <div class="file-actions">
+                    ${!file.isFolder ? `<button class="file-action-btn" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>` : ''}
+                    <button class="file-action-btn delete" onclick="event.stopPropagation(); deleteFile(${file.id})">🗑️</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function getFileIcon(file) {
+    if (file.isFolder) return '📁';
+
+    const icons = {
+        'image': '🖼️',
+        'video': '🎬',
+        'audio': '🎵',
+        'pdf': '📕',
+        'text': '📄',
+        'folder': '📁',
+        'other': '📄'
+    };
+
+    return icons[file.type] || '📄';
+}
+
+function formatSize(bytes) {
+    const size = parseInt(bytes);
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+    return (size / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function openFile(id, type, isFolder) {
+    if (isFolder) {
+        navigateToFolder(id);
+    } else {
+        // Passer le parent_id au viewer pour garder le contexte du dossier
+        const parentId = currentFolder?.id || '';
+        window.location.href = `/viewer/${id}${parentId ? '?parent_id=' + parentId : ''}`;
+    }
+}
+
+function navigateToFolder(folderId) {
+    loadFiles(folderId);
+}
+
+function downloadFile(id) {
+    window.location.href = `/files/${id}/download`;
+}
+
+async function deleteFile(id) {
+    const file = allFiles.find(f => f.id === id);
+    if (!file) return;
+
+    if (!confirm(`Supprimer "${file.filename}" ?`)) return;
 
     try {
-        const response = await fetch('/files/upload', {
-            method: 'POST',
-            headers: {
-                'X-Auth-Token': token
-            },
-            body: formData
+        const response = await fetch(`/files/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-Auth-Token': token }
         });
 
-        const data = await response.json();
-
         if (response.ok) {
-            successDiv.textContent = '✓ Fichier uploadé avec succès !';
-            successDiv.style.display = 'block';
-            fileInput.value = '';
-            setTimeout(() => location.reload(), 1000);
+            alert('✅ Fichier supprimé');
+            selectedFiles.delete(id);
+            updateMultiActionBar();
+            loadFiles(currentFolder?.id);
+            loadUserData();
         } else {
-            errorDiv.textContent = '⚠️ ' + (data.error || 'Erreur lors de l\'upload');
-            errorDiv.style.display = 'block';
+            throw new Error('Delete failed');
         }
     } catch (error) {
-        errorDiv.textContent = '⚠️ Erreur de connexion au serveur';
-        errorDiv.style.display = 'block';
+        alert('❌ Erreur lors de la suppression');
+    }
+}
+
+// Sélection multiple
+function toggleFileSelection(id) {
+    if (selectedFiles.has(id)) {
+        selectedFiles.delete(id);
+    } else {
+        selectedFiles.add(id);
+    }
+    updateMultiActionBar();
+    renderFiles();
+}
+
+function handleFileClick(event, id) {
+    // Click simple ou avec Ctrl/Cmd pour toggle la sélection
+    event.preventDefault();
+    toggleFileSelection(id);
+}
+
+function clearSelection() {
+    selectedFiles.clear();
+    updateMultiActionBar();
+    renderFiles();
+}
+
+function updateMultiActionBar() {
+    const bar = document.getElementById('multi-action-bar');
+    const count = document.getElementById('selected-count');
+
+    count.textContent = selectedFiles.size;
+
+    if (selectedFiles.size > 0) {
+        bar.classList.add('active');
+    } else {
+        bar.classList.remove('active');
+    }
+}
+
+async function downloadSelectedFiles() {
+    if (selectedFiles.size === 0) return;
+
+    // Télécharger chaque fichier sélectionné
+    for (const fileId of selectedFiles) {
+        const file = allFiles.find(f => f.id === fileId);
+        if (file && !file.isFolder) {
+            window.open(`/files/${fileId}/download`, '_blank');
+            // Petit délai pour éviter de bloquer le navigateur
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+    }
+}
+
+async function deleteSelectedFiles() {
+    if (selectedFiles.size === 0) return;
+
+    const count = selectedFiles.size;
+    if (!confirm(`Supprimer ${count} fichier(s) sélectionné(s) ?`)) return;
+
+    const fileIds = Array.from(selectedFiles);
+    let deleted = 0;
+    let errors = 0;
+
+    for (const fileId of fileIds) {
+        try {
+            const response = await fetch(`/files/${fileId}`, {
+                method: 'DELETE',
+                headers: { 'X-Auth-Token': token }
+            });
+
+            if (response.ok) {
+                deleted++;
+                selectedFiles.delete(fileId);
+            } else {
+                errors++;
+            }
+        } catch (error) {
+            errors++;
+        }
+    }
+
+    alert(`✅ ${deleted} fichier(s) supprimé(s)${errors > 0 ? `, ${errors} erreur(s)` : ''}`);
+    updateMultiActionBar();
+    loadFiles(currentFolder?.id);
+    loadUserData();
+}
+
+// Sélection par rectangle (lasso)
+function initLassoSelection() {
+    const filesGrid = document.getElementById('files-grid');
+    selectionBox = document.getElementById('selection-box');
+
+    filesGrid.addEventListener('mousedown', (e) => {
+        // Ne pas démarrer si on clique sur un élément interactif
+        if (e.target.closest('.file-checkbox') || e.target.closest('.file-action-btn') || e.target.closest('.file-card')) {
+            return;
+        }
+
+        isSelecting = true;
+        selectionStart = { x: e.clientX, y: e.clientY };
+
+        selectionBox.style.left = e.clientX + 'px';
+        selectionBox.style.top = e.clientY + 'px';
+        selectionBox.style.width = '0px';
+        selectionBox.style.height = '0px';
+        selectionBox.classList.add('active');
+
+        // Désélectionner tout si pas de Ctrl/Cmd
+        if (!e.ctrlKey && !e.metaKey) {
+            selectedFiles.clear();
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isSelecting) return;
+
+        const currentX = e.clientX;
+        const currentY = e.clientY;
+
+        const left = Math.min(selectionStart.x, currentX);
+        const top = Math.min(selectionStart.y, currentY);
+        const width = Math.abs(currentX - selectionStart.x);
+        const height = Math.abs(currentY - selectionStart.y);
+
+        selectionBox.style.left = left + 'px';
+        selectionBox.style.top = top + 'px';
+        selectionBox.style.width = width + 'px';
+        selectionBox.style.height = height + 'px';
+
+        // Vérifier quels fichiers intersectent avec le rectangle
+        updateSelectionFromBox({ left, top, width, height });
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isSelecting) {
+            isSelecting = false;
+            selectionBox.classList.remove('active');
+            updateMultiActionBar();
+            renderFiles();
+        }
+    });
+}
+
+function updateSelectionFromBox(box) {
+    const fileCards = document.querySelectorAll('.file-card');
+
+    fileCards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const fileId = parseInt(card.dataset.fileId);
+
+        // Vérifier si le rectangle de sélection intersecte avec la carte
+        const intersects = !(
+            rect.right < box.left ||
+            rect.left > box.left + box.width ||
+            rect.bottom < box.top ||
+            rect.top > box.top + box.height
+        );
+
+        if (intersects) {
+            selectedFiles.add(fileId);
+            card.classList.add('selected');
+        }
+    });
+}
+
+// Drag & Drop amélioré pour fichiers multiples
+async function moveSelectedFilesToFolder(targetFolderId) {
+    if (draggedFiles.size === 0) return;
+
+    const fileIds = Array.from(draggedFiles);
+    let moved = 0;
+    let errors = 0;
+
+    for (const fileId of fileIds) {
+        try {
+            const response = await fetch(`/files/${fileId}/move`, {
+                method: 'PATCH',
+                headers: {
+                    'X-Auth-Token': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    parent_id: targetFolderId || null
+                })
+            });
+
+            if (response.ok) {
+                moved++;
+                selectedFiles.delete(fileId);
+            } else {
+                errors++;
+            }
+        } catch (error) {
+            errors++;
+        }
+    }
+
+    if (moved > 0) {
+        alert(`✅ ${moved} fichier(s) déplacé(s)${errors > 0 ? `, ${errors} erreur(s)` : ''}`);
+    }
+
+    draggedFiles.clear();
+    updateMultiActionBar();
+    loadFiles(currentFolder?.id);
+}
+
+// Fonction utilitaire pour échapper le HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Upload
+const fileInput = document.getElementById('file-input');
+const uploadZone = document.getElementById('upload-zone');
+const uploadCard = document.getElementById('upload-card');
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        uploadFiles(e.target.files);
     }
 });
 
-async function deleteFile(fileId) {
-    if (!confirm('Voulez-vous vraiment supprimer ce fichier ?')) {
+// Drag & Drop
+uploadCard.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadCard.classList.add('drag-over');
+});
+
+uploadCard.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadCard.classList.remove('drag-over');
+});
+
+uploadCard.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadCard.classList.remove('drag-over');
+
+    if (e.dataTransfer.files.length > 0) {
+        uploadFiles(e.dataTransfer.files);
+    }
+});
+
+async function uploadFiles(files) {
+    const formData = new FormData();
+
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files[]', files[i]);
+    }
+
+    if (currentFolder) {
+        formData.append('parent_id', currentFolder.id);
+    }
+
+    try {
+        const response = await fetch('/files/upload-multiple', {
+            method: 'POST',
+            headers: { 'X-Auth-Token': token },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(`✅ ${result.success} fichier(s) uploadé(s)${result.failed > 0 ? `, ${result.failed} échec(s)` : ''}`);
+            fileInput.value = '';
+            loadFiles(currentFolder?.id);
+            loadUserData();
+        } else {
+            throw new Error(result.error || 'Upload failed');
+        }
+    } catch (error) {
+        alert('❌ Erreur: ' + error.message);
+    }
+}
+
+// Modals
+function showCreateFolderModal() {
+    document.getElementById('create-folder-modal').classList.add('active');
+    document.getElementById('folder-name').focus();
+}
+
+function showCreateTextFileModal() {
+    document.getElementById('create-text-modal').classList.add('active');
+    document.getElementById('text-filename').focus();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+async function createFolder() {
+    const name = document.getElementById('folder-name').value.trim();
+
+    if (!name) {
+        alert('Veuillez entrer un nom');
         return;
     }
 
     try {
-        const response = await fetch(`/files/${fileId}`, {
-            method: 'DELETE',
+        const response = await fetch('/files/folder', {
+            method: 'POST',
             headers: {
-                'X-Auth-Token': token
-            }
+                'X-Auth-Token': token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name,
+                parent_id: currentFolder?.id
+            })
         });
 
         if (response.ok) {
-            document.querySelector(`[data-file-id="${fileId}"]`).remove();
-            loadUserData();
+            alert('✅ Dossier créé');
+            closeModal('create-folder-modal');
+            document.getElementById('folder-name').value = '';
+            loadFiles(currentFolder?.id);
         } else {
-            alert('❌ Erreur lors de la suppression');
+            throw new Error('Creation failed');
         }
     } catch (error) {
-        alert('❌ Erreur de connexion au serveur');
+        alert('❌ Erreur lors de la création');
     }
+}
+
+async function createTextFile() {
+    const filename = document.getElementById('text-filename').value.trim();
+
+    if (!filename) {
+        alert('Veuillez entrer un nom');
+        return;
+    }
+
+    try {
+        const response = await fetch('/files/text', {
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                filename: filename,
+                content: '',
+                parent_id: currentFolder?.id
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            closeModal('create-text-modal');
+            document.getElementById('text-filename').value = '';
+            // Ouvrir directement dans le viewer pour éditer
+            window.location.href = `/viewer/${result.file.id}`;
+        } else {
+            throw new Error('Creation failed');
+        }
+    } catch (error) {
+        alert('❌ Erreur lors de la création');
+    }
+}
+
+// Drag & Drop between folders
+let draggedFileId = null;
+
+function handleDragStart(e) {
+    const draggedFileId = parseInt(e.target.dataset.fileId);
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+
+    // Si le fichier draggé est sélectionné, déplacer tous les fichiers sélectionnés
+    if (selectedFiles.has(draggedFileId)) {
+        draggedFiles = new Set(selectedFiles);
+    } else {
+        draggedFiles = new Set([draggedFileId]);
+    }
+
+    // Afficher le nombre de fichiers dans le drag
+    e.dataTransfer.setData('text/plain', draggedFiles.size);
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    // Ne pas vider draggedFiles ici, on le fait après le drop
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    const file = allFiles.find(f => f.id == target.dataset.fileId);
+
+    // Vérifier qu'on ne drag pas un dossier sur lui-même ou sur un fichier sélectionné
+    if (file && file.isFolder && !draggedFiles.has(file.id)) {
+        target.style.borderColor = 'var(--primary)';
+        target.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+        e.dataTransfer.dropEffect = 'move';
+    }
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.style.borderColor = '';
+    e.currentTarget.style.backgroundColor = '';
+}
+
+async function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const targetElement = e.currentTarget;
+    targetElement.style.borderColor = '';
+    targetElement.style.backgroundColor = '';
+
+    const targetFileId = parseInt(targetElement.dataset.fileId);
+    const targetFile = allFiles.find(f => f.id == targetFileId);
+
+    // Vérifier que c'est bien un dossier et qu'il n'est pas dans les fichiers à déplacer
+    if (!targetFile || !targetFile.isFolder || draggedFiles.has(targetFileId)) {
+        draggedFiles.clear();
+        return;
+    }
+
+    // Déplacer tous les fichiers sélectionnés
+    await moveSelectedFilesToFolder(targetFileId);
 }
 
 function logout() {
     localStorage.removeItem('auth_token');
     window.location.href = '/login-page';
 }
+
+// Charger au démarrage
+loadUserData();
+
+// Vérifier si on doit ouvrir un dossier spécifique (retour depuis le viewer)
+const urlParams = new URLSearchParams(window.location.search);
+const startParentId = urlParams.get('parent_id');
+if (startParentId) {
+    loadFiles(parseInt(startParentId));
+    // Nettoyer l'URL
+    window.history.replaceState({}, '', '/dashboard');
+} else {
+    loadFiles();
+}
+
+initLassoSelection();
 </script>
 {% endblock %}

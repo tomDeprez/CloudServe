@@ -7,6 +7,8 @@ use App\Repository\FileRepository;
 use App\Security\FileVoter;
 use App\Service\FileStorageService;
 use App\Service\RawFileUploadService;
+use App\Service\ThumbnailService;
+use App\Service\ImageCompressionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -23,8 +25,165 @@ class FileController extends AbstractController
         private EntityManagerInterface $entityManager,
         private FileStorageService $fileStorage,
         private RawFileUploadService $rawFileUpload,
+        private ThumbnailService $thumbnailService,
+        private ImageCompressionService $imageCompressionService,
         private FileRepository $fileRepository,
     ) {
+    }
+
+    #[Route('/upload-multiple', name: 'app_file_upload_multiple', methods: ['POST'])]
+    public function uploadMultiple(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        if (!$user->isActive()) {
+            return new JsonResponse(['error' => 'Account suspended'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Récupérer tous les fichiers uploadés
+        if (empty($_FILES['files'])) {
+            return new JsonResponse(['error' => 'No files uploaded'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $parentId = $request->request->get('parent_id');
+        $parent = null;
+
+        if ($parentId) {
+            $parent = $this->fileRepository->find($parentId);
+            if (!$parent || !$parent->isFolder() || $parent->getUser()->getId() !== $user->getId()) {
+                return new JsonResponse(['error' => 'Invalid parent folder'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        $uploadedFiles = [];
+        $errors = [];
+        $totalSize = 0;
+
+        // Normaliser $_FILES pour gérer les uploads multiples
+        $filesData = $this->normalizeFilesArray($_FILES['files']);
+
+        foreach ($filesData as $index => $fileData) {
+            if ($fileData['error'] !== UPLOAD_ERR_OK) {
+                $errors[] = [
+                    'filename' => $fileData['name'],
+                    'error' => 'Upload error code: ' . $fileData['error']
+                ];
+                continue;
+            }
+
+            $totalSize += $fileData['size'];
+        }
+
+        // Vérifier le quota pour tous les fichiers
+        if (!$user->hasAvailableSpace($totalSize)) {
+            return new JsonResponse([
+                'error' => 'Quota exceeded',
+                'quota' => $user->getQuota(),
+                'usedSpace' => $user->getUsedSpace(),
+                'requiredSpace' => $totalSize,
+            ], Response::HTTP_INSUFFICIENT_STORAGE);
+        }
+
+        // Uploader chaque fichier
+        foreach ($filesData as $fileData) {
+            if ($fileData['error'] !== UPLOAD_ERR_OK) {
+                continue;
+            }
+
+            try {
+                $uploadResult = $this->rawFileUpload->store($fileData);
+
+                // Compresser l'image si applicable
+                if ($this->imageCompressionService->isCompressibleImage($uploadResult['mimeType'])) {
+                    $uploadPath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $uploadResult['storedName'];
+                    $compressed = $this->imageCompressionService->compressImage(
+                        $uploadPath,
+                        $uploadPath, // Écraser le fichier original
+                        $uploadResult['mimeType']
+                    );
+
+                    // Mettre à jour la taille si compression réussie
+                    if ($compressed && file_exists($uploadPath)) {
+                        $uploadResult['size'] = filesize($uploadPath);
+                    }
+                }
+
+                $file = new File();
+                $file->setFilename($uploadResult['originalName']);
+                $file->setStoredName($uploadResult['storedName']);
+                $file->setMimeType($uploadResult['mimeType']);
+                $file->setSize((string)$uploadResult['size']);
+                $file->setUser($user);
+                $file->setType('file');
+                if ($parent) {
+                    $file->setParent($parent);
+                }
+
+                // Générer miniature pour les images
+                if ($file->getFileType() === 'image') {
+                    $thumbnailPath = $this->thumbnailService->generateThumbnail($uploadResult['storedName']);
+                    if ($thumbnailPath) {
+                        $file->setThumbnail($thumbnailPath);
+                    }
+                }
+
+                $this->entityManager->persist($file);
+
+                $uploadedFiles[] = [
+                    'id' => null, // Sera défini après flush
+                    'filename' => $file->getFilename(),
+                    'size' => $file->getSize(),
+                    'type' => $file->getFileType(),
+                ];
+
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'filename' => $fileData['name'],
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        // Mettre à jour l'espace utilisé
+        $user->setUsedSpace((string)((int)$user->getUsedSpace() + $totalSize - array_sum(array_column($errors, 'size', 0))));
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'message' => count($uploadedFiles) . ' file(s) uploaded successfully',
+            'uploaded' => $uploadedFiles,
+            'errors' => $errors,
+            'total' => count($filesData),
+            'success' => count($uploadedFiles),
+            'failed' => count($errors),
+        ], Response::HTTP_CREATED);
+    }
+
+    private function normalizeFilesArray(array $files): array
+    {
+        $normalized = [];
+
+        if (isset($files['name']) && is_array($files['name'])) {
+            // Format multiple : files[0], files[1], etc.
+            foreach ($files['name'] as $index => $name) {
+                $normalized[] = [
+                    'name' => $files['name'][$index],
+                    'type' => $files['type'][$index],
+                    'tmp_name' => $files['tmp_name'][$index],
+                    'error' => $files['error'][$index],
+                    'size' => $files['size'][$index],
+                ];
+            }
+        } else {
+            // Format simple : un seul fichier
+            $normalized[] = $files;
+        }
+
+        return $normalized;
     }
 
     #[Route('/upload', name: 'app_file_upload', methods: ['POST'])]
@@ -100,6 +259,34 @@ class FileController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
+        // Compresser l'image si applicable
+        if ($this->imageCompressionService->isCompressibleImage($uploadResult['mimeType'])) {
+            $uploadPath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $uploadResult['storedName'];
+            $compressed = $this->imageCompressionService->compressImage(
+                $uploadPath,
+                $uploadPath, // Écraser le fichier original
+                $uploadResult['mimeType']
+            );
+
+            // Mettre à jour la taille si compression réussie
+            if ($compressed && file_exists($uploadPath)) {
+                $uploadResult['size'] = filesize($uploadPath);
+            }
+        }
+
+        // Récupérer le dossier parent si spécifié
+        $parentId = $request->request->get('parent_id');
+        $parent = null;
+
+        if ($parentId) {
+            $parent = $this->fileRepository->find($parentId);
+            if (!$parent || !$parent->isFolder() || $parent->getUser()->getId() !== $user->getId()) {
+                return new JsonResponse([
+                    'error' => 'Invalid parent folder'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
         // Créer l'entité File
         $file = new File();
         $file->setFilename($uploadResult['originalName']);
@@ -107,9 +294,21 @@ class FileController extends AbstractController
         $file->setMimeType($uploadResult['mimeType']);
         $file->setSize((string)$uploadResult['size']);
         $file->setUser($user);
+        $file->setType('file');
+        if ($parent) {
+            $file->setParent($parent);
+        }
 
-        // Mettre à jour l'espace utilisé
-        $user->setUsedSpace((string)((int)$user->getUsedSpace() + $fileSize));
+        // Générer une miniature si c'est une image
+        if ($file->getFileType() === 'image') {
+            $thumbnailPath = $this->thumbnailService->generateThumbnail($uploadResult['storedName']);
+            if ($thumbnailPath) {
+                $file->setThumbnail($thumbnailPath);
+            }
+        }
+
+        // Mettre à jour l'espace utilisé (utiliser la taille après compression)
+        $user->setUsedSpace((string)((int)$user->getUsedSpace() + (int)$uploadResult['size']));
 
         $this->entityManager->persist($file);
         $this->entityManager->persist($user);
@@ -122,13 +321,16 @@ class FileController extends AbstractController
                 'filename' => $file->getFilename(),
                 'size' => $file->getSize(),
                 'mimeType' => $file->getMimeType(),
+                'type' => $file->getFileType(),
+                'thumbnail' => $file->getThumbnail(),
+                'parent_id' => $parent?->getId(),
                 'uploadedAt' => $file->getUploadedAt()->format('Y-m-d H:i:s'),
             ]
         ], Response::HTTP_CREATED);
     }
 
     #[Route('', name: 'app_file_list', methods: ['GET'])]
-    public function list(): JsonResponse
+    public function list(Request $request): JsonResponse
     {
         $user = $this->getUser();
 
@@ -138,7 +340,23 @@ class FileController extends AbstractController
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        $files = $this->fileRepository->findByUser($user);
+        // Récupérer le dossier parent pour la navigation
+        $parentId = $request->query->get('parent_id');
+        $parent = null;
+
+        if ($parentId) {
+            $parent = $this->fileRepository->find($parentId);
+            if (!$parent || $parent->getUser()->getId() !== $user->getId()) {
+                return new JsonResponse([
+                    'error' => 'Invalid parent folder'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        // Récupérer les fichiers du dossier actuel
+        $files = $parentId
+            ? $this->fileRepository->findBy(['user' => $user, 'parent' => $parent])
+            : $this->fileRepository->findBy(['user' => $user, 'parent' => null]);
 
         $filesData = array_map(function (File $file) {
             return [
@@ -146,6 +364,11 @@ class FileController extends AbstractController
                 'filename' => $file->getFilename(),
                 'size' => $file->getSize(),
                 'mimeType' => $file->getMimeType(),
+                'type' => $file->getFileType(),
+                'isFolder' => $file->isFolder(),
+                'isEditable' => $file->isEditable(),
+                'thumbnail' => $file->getThumbnail(),
+                'parent_id' => $file->getParent()?->getId(),
                 'uploadedAt' => $file->getUploadedAt()->format('Y-m-d H:i:s'),
             ];
         }, $files);
@@ -153,6 +376,11 @@ class FileController extends AbstractController
         return new JsonResponse([
             'files' => $filesData,
             'count' => count($filesData),
+            'current_folder' => $parent ? [
+                'id' => $parent->getId(),
+                'name' => $parent->getFilename(),
+                'parent_id' => $parent->getParent()?->getId(),
+            ] : null,
         ]);
     }
 
@@ -217,5 +445,276 @@ class FileController extends AbstractController
         return new JsonResponse([
             'message' => 'File deleted successfully'
         ]);
+    }
+
+    #[Route('/folder', name: 'app_folder_create', methods: ['POST'])]
+    public function createFolder(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $folderName = $data['name'] ?? null;
+        $parentId = $data['parent_id'] ?? null;
+
+        if (!$folderName || trim($folderName) === '') {
+            return new JsonResponse(['error' => 'Folder name is required'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $parent = null;
+        if ($parentId) {
+            $parent = $this->fileRepository->find($parentId);
+            if (!$parent || !$parent->isFolder() || $parent->getUser()->getId() !== $user->getId()) {
+                return new JsonResponse(['error' => 'Invalid parent folder'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        $folder = new File();
+        $folder->setFilename($folderName);
+        $folder->setType('folder');
+        $folder->setSize('0');
+        $folder->setMimeType('inode/directory');
+        $folder->setUser($user);
+        $folder->setStoredName(''); // Pas de fichier physique pour un dossier
+        if ($parent) {
+            $folder->setParent($parent);
+        }
+
+        $this->entityManager->persist($folder);
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'message' => 'Folder created successfully',
+            'folder' => [
+                'id' => $folder->getId(),
+                'filename' => $folder->getFilename(),
+                'type' => 'folder',
+                'parent_id' => $parent?->getId(),
+            ]
+        ], Response::HTTP_CREATED);
+    }
+
+    #[Route('/text', name: 'app_text_file_create', methods: ['POST'])]
+    public function createTextFile(Request $request): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $filename = $data['filename'] ?? 'untitled.txt';
+        $content = $data['content'] ?? '';
+        $parentId = $data['parent_id'] ?? null;
+
+        $parent = null;
+        if ($parentId) {
+            $parent = $this->fileRepository->find($parentId);
+            if (!$parent || !$parent->isFolder() || $parent->getUser()->getId() !== $user->getId()) {
+                return new JsonResponse(['error' => 'Invalid parent folder'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        $textFile = new File();
+        $textFile->setFilename($filename);
+        $textFile->setType('file');
+        $textFile->setMimeType('text/plain');
+        $textFile->setContent($content);
+        $textFile->setSize((string)strlen($content));
+        $textFile->setUser($user);
+        $textFile->setStoredName(''); // Contenu stocké en BDD pour les fichiers texte
+        if ($parent) {
+            $textFile->setParent($parent);
+        }
+
+        $this->entityManager->persist($textFile);
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'message' => 'Text file created successfully',
+            'file' => [
+                'id' => $textFile->getId(),
+                'filename' => $textFile->getFilename(),
+                'type' => 'text',
+                'size' => $textFile->getSize(),
+                'parent_id' => $parent?->getId(),
+            ]
+        ], Response::HTTP_CREATED);
+    }
+
+    #[Route('/{id}/content', name: 'app_file_content_get', methods: ['GET'])]
+    public function getFileContent(int $id): JsonResponse
+    {
+        $file = $this->fileRepository->find($id);
+
+        if (!$file) {
+            return new JsonResponse(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->denyAccessUnlessGranted(FileVoter::VIEW, $file);
+
+        if (!$file->isEditable()) {
+            return new JsonResponse(['error' => 'File is not editable'], Response::HTTP_BAD_REQUEST);
+        }
+
+        return new JsonResponse([
+            'id' => $file->getId(),
+            'filename' => $file->getFilename(),
+            'content' => $file->getContent() ?? '',
+        ]);
+    }
+
+    #[Route('/{id}/content', name: 'app_file_content_update', methods: ['PUT'])]
+    public function updateFileContent(int $id, Request $request): JsonResponse
+    {
+        $file = $this->fileRepository->find($id);
+
+        if (!$file) {
+            return new JsonResponse(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->denyAccessUnlessGranted(FileVoter::DELETE, $file); // Utiliser DELETE comme permission pour éditer
+
+        if (!$file->isEditable()) {
+            return new JsonResponse(['error' => 'File is not editable'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $newContent = $data['content'] ?? '';
+
+        $file->setContent($newContent);
+        $file->setSize((string)strlen($newContent));
+
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'message' => 'File content updated successfully',
+            'file' => [
+                'id' => $file->getId(),
+                'filename' => $file->getFilename(),
+                'size' => $file->getSize(),
+            ]
+        ]);
+    }
+
+    #[Route('/{id}/move', name: 'app_file_move', methods: ['PATCH'])]
+    public function moveFile(int $id, Request $request): JsonResponse
+    {
+        $file = $this->fileRepository->find($id);
+
+        if (!$file) {
+            return new JsonResponse(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->denyAccessUnlessGranted(FileVoter::DELETE, $file);
+
+        $data = json_decode($request->getContent(), true);
+        $newParentId = $data['parent_id'] ?? null;
+
+        $newParent = null;
+        if ($newParentId) {
+            $newParent = $this->fileRepository->find($newParentId);
+            if (!$newParent || !$newParent->isFolder() || $newParent->getUser()->getId() !== $file->getUser()->getId()) {
+                return new JsonResponse(['error' => 'Invalid parent folder'], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Empêcher de déplacer un dossier dans lui-même ou ses sous-dossiers
+            if ($file->isFolder()) {
+                $current = $newParent;
+                while ($current) {
+                    if ($current->getId() === $file->getId()) {
+                        return new JsonResponse(['error' => 'Cannot move folder into itself'], Response::HTTP_BAD_REQUEST);
+                    }
+                    $current = $current->getParent();
+                }
+            }
+        }
+
+        $file->setParent($newParent);
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'message' => 'File moved successfully',
+            'file' => [
+                'id' => $file->getId(),
+                'filename' => $file->getFilename(),
+                'parent_id' => $newParent?->getId(),
+            ]
+        ]);
+    }
+
+    #[Route('/{id}/thumbnail', name: 'app_file_thumbnail', methods: ['GET'])]
+    public function getThumbnail(int $id): Response
+    {
+        $file = $this->fileRepository->find($id);
+
+        if (!$file) {
+            return new JsonResponse(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->denyAccessUnlessGranted(FileVoter::VIEW, $file);
+
+        $thumbnailPath = $file->getThumbnail();
+
+        if (!$thumbnailPath || !$this->thumbnailService->thumbnailExists($thumbnailPath)) {
+            // Générer la miniature si elle n'existe pas et que c'est une image
+            if ($file->getFileType() === 'image' && $file->getStoredName()) {
+                $thumbnailPath = $this->thumbnailService->generateThumbnail($file->getStoredName());
+                if ($thumbnailPath) {
+                    $file->setThumbnail($thumbnailPath);
+                    $this->entityManager->flush();
+                }
+            }
+        }
+
+        if (!$thumbnailPath || !$this->thumbnailService->thumbnailExists($thumbnailPath)) {
+            return new JsonResponse(['error' => 'Thumbnail not available'], Response::HTTP_NOT_FOUND);
+        }
+
+        $fullPath = $this->thumbnailService->getThumbnailPath($thumbnailPath);
+        return new BinaryFileResponse($fullPath);
+    }
+
+    #[Route('/{id}/view', name: 'app_file_view', methods: ['GET'])]
+    public function viewFile(int $id): Response
+    {
+        $file = $this->fileRepository->find($id);
+
+        if (!$file) {
+            return new JsonResponse(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->denyAccessUnlessGranted(FileVoter::VIEW, $file);
+
+        // Pour les fichiers texte éditables, retourner le contenu JSON
+        if ($file->isEditable()) {
+            return new JsonResponse([
+                'id' => $file->getId(),
+                'filename' => $file->getFilename(),
+                'content' => $file->getContent() ?? '',
+                'type' => 'text',
+            ]);
+        }
+
+        // Pour les autres fichiers, retourner le fichier pour affichage inline
+        if (!$file->getStoredName() || !$this->fileStorage->exists($file->getStoredName())) {
+            return new JsonResponse(['error' => 'File not found on disk'], Response::HTTP_NOT_FOUND);
+        }
+
+        $filePath = $this->fileStorage->getFilePath($file->getStoredName());
+        $response = new BinaryFileResponse($filePath);
+
+        // Définir le bon Content-Type et disposition inline pour visualisation
+        $response->headers->set('Content-Type', $file->getMimeType());
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            $file->getFilename()
+        );
+
+        return $response;
     }
 }

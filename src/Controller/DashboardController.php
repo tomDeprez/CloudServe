@@ -63,4 +63,13 @@ class DashboardController extends AbstractController
         // Cette méthode ne sera jamais appelée car Symfony intercepte la requête
         return $this->redirectToRoute('app_login_page');
     }
+
+    #[Route('/viewer/{id}', name: 'app_viewer')]
+    public function viewer(int $id): Response
+    {
+        // Authentification vérifiée côté JavaScript
+        return $this->render('viewer/index.html.twig', [
+            'fileId' => $id,
+        ]);
+    }
 }

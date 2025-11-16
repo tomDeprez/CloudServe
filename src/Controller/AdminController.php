@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Repository\FileRepository;
 use App\Repository\UserRepository;
+use App\Service\ThumbnailService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -19,6 +20,7 @@ class AdminController extends AbstractController
         private EntityManagerInterface $entityManager,
         private UserRepository $userRepository,
         private FileRepository $fileRepository,
+        private ThumbnailService $thumbnailService,
     ) {
     }
 
@@ -206,5 +208,53 @@ class AdminController extends AbstractController
         }
 
         return (int)((float)$value * $units[$unit]);
+    }
+
+    #[Route('/regenerate-thumbnails', name: 'app_admin_regenerate_thumbnails', methods: ['POST'])]
+    public function regenerateThumbnails(): JsonResponse
+    {
+        $files = $this->fileRepository->findAll();
+        $generated = 0;
+        $skipped = 0;
+        $errors = 0;
+
+        foreach ($files as $file) {
+            // Ignorer les dossiers
+            if ($file->isFolder()) {
+                continue;
+            }
+
+            // Traiter uniquement les images
+            if ($file->getFileType() !== 'image') {
+                continue;
+            }
+
+            // Si la miniature existe déjà et que le fichier existe, on la garde
+            if ($file->getThumbnail() && $this->thumbnailService->thumbnailExists($file->getThumbnail())) {
+                $skipped++;
+                continue;
+            }
+
+            // Générer la miniature
+            $thumbnailPath = $this->thumbnailService->generateThumbnail($file->getStoredName());
+            if ($thumbnailPath) {
+                $file->setThumbnail($thumbnailPath);
+                $this->entityManager->persist($file);
+                $generated++;
+            } else {
+                $errors++;
+            }
+        }
+
+        // Sauvegarder les modifications
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'generated' => $generated,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'message' => "✅ $generated miniature(s) générée(s), $skipped déjà existante(s), $errors erreur(s)"
+        ]);
     }
 }

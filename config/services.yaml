@@ -30,3 +30,7 @@ services:
     App\Service\RawFileUploadService:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    App\Service\ThumbnailService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'

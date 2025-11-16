@@ -32,6 +32,19 @@ class File
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
+    #[ORM\Column(length: 20, options: ['default' => 'file'])]
+    private string $type = 'file'; // 'file' ou 'folder'
+
+    #[ORM\ManyToOne(targetEntity: self::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
+    private ?File $parent = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $content = null; // Contenu pour les fichiers texte éditables
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $thumbnail = null; // Chemin vers la miniature
+
     public function __construct()
     {
         $this->uploadedAt = new \DateTimeImmutable();
@@ -106,5 +119,102 @@ class File
     {
         $this->user = $user;
         return $this;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
+    public function setType(string $type): static
+    {
+        $this->type = $type;
+        return $this;
+    }
+
+    public function isFolder(): bool
+    {
+        return $this->type === 'folder';
+    }
+
+    public function getParent(): ?File
+    {
+        return $this->parent;
+    }
+
+    public function setParent(?File $parent): static
+    {
+        $this->parent = $parent;
+        return $this;
+    }
+
+    public function getContent(): ?string
+    {
+        return $this->content;
+    }
+
+    public function setContent(?string $content): static
+    {
+        $this->content = $content;
+        return $this;
+    }
+
+    public function getThumbnail(): ?string
+    {
+        return $this->thumbnail;
+    }
+
+    public function setThumbnail(?string $thumbnail): static
+    {
+        $this->thumbnail = $thumbnail;
+        return $this;
+    }
+
+    public function isEditable(): bool
+    {
+        // Fichiers éditables : txt, md, json, xml, csv, etc.
+        $editableExtensions = ['txt', 'md', 'json', 'xml', 'csv', 'log', 'html', 'css', 'js', 'php', 'yml', 'yaml'];
+        $extension = strtolower(pathinfo($this->filename, PATHINFO_EXTENSION));
+        return in_array($extension, $editableExtensions);
+    }
+
+    public function getFileType(): string
+    {
+        if ($this->isFolder()) {
+            return 'folder';
+        }
+
+        $extension = strtolower(pathinfo($this->filename, PATHINFO_EXTENSION));
+        $mimeType = $this->mimeType;
+
+        // Images
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']) ||
+            str_starts_with($mimeType, 'image/')) {
+            return 'image';
+        }
+
+        // Vidéos
+        if (in_array($extension, ['mp4', 'webm', 'ogg', 'avi', 'mov', 'mkv']) ||
+            str_starts_with($mimeType, 'video/')) {
+            return 'video';
+        }
+
+        // Audio
+        if (in_array($extension, ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac']) ||
+            str_starts_with($mimeType, 'audio/')) {
+            return 'audio';
+        }
+
+        // PDF
+        if ($extension === 'pdf' || $mimeType === 'application/pdf') {
+            return 'pdf';
+        }
+
+        // Texte
+        if ($this->isEditable() || str_starts_with($mimeType, 'text/')) {
+            return 'text';
+        }
+
+        return 'other';
     }
 }
