@@ -1,0 +1,53 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="95" fill="url(#cloudGradient)" opacity="0.1"/>
+
+  <!-- Cloud Shape -->
+  <path d="M 60 110
+           Q 50 110, 50 100
+           Q 50 85, 65 80
+           Q 70 65, 85 65
+           Q 95 55, 110 55
+           Q 125 55, 135 65
+           Q 150 65, 155 80
+           Q 170 85, 170 100
+           Q 170 110, 160 110
+           Z"
+        fill="url(#cloudGradient)"
+        stroke="none"/>
+
+  <!-- Upload Arrow -->
+  <g transform="translate(100, 95)">
+    <!-- Arrow Shaft -->
+    <rect x="-6" y="0" width="12" height="45" rx="3" fill="url(#arrowGradient)"/>
+
+    <!-- Arrow Head -->
+    <path d="M -20 15 L 0 -15 L 20 15 Z" fill="url(#arrowGradient)"/>
+  </g>
+
+  <!-- Small dots for data effect -->
+  <circle cx="75" cy="95" r="3" fill="#fff" opacity="0.6">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="125" cy="95" r="3" fill="#fff" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="100" cy="85" r="2" fill="#fff" opacity="0.7">
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" begin="1s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Text -->
+  <text x="100" y="170" font-family="Arial, sans-serif" font-size="24" font-weight="bold"
+        text-anchor="middle" fill="url(#cloudGradient)">CloudServe</text>
+</svg>

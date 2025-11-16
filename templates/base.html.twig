@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CloudServe{% endblock %}</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Stockage cloud sécurisé avec partage de fichiers, gestion intelligente et accès depuis n'importe où">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CloudServe">
+
+    <!-- Favicon & Icons -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="apple-touch-icon" href="/images/icon-192.svg">
+    <link rel="manifest" href="/manifest.json">
     <style>
         * {
             margin: 0;
@@ -237,5 +249,305 @@
 <body>
     {% block body %}{% endblock %}
     {% block javascripts %}{% endblock %}
+
+    <!-- PWA Install Popup for Mobile/Tablet -->
+    <script>
+    (function() {
+        // Détecter si l'utilisateur est sur mobile ou tablette
+        function isMobileOrTablet() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+            const isTablet = /(ipad|tablet|(android(?!.*mobile))|(windows(?!.*phone)(.*touch))|kindle|playbook|silk|(puffin(?!.*(IP|AP|WP))))/.test(userAgent);
+            const isSmallScreen = window.innerWidth <= 1024;
+
+            return (isMobile || isTablet || isSmallScreen) && !window.matchMedia('(display-mode: standalone)').matches;
+        }
+
+        // Vérifier si le popup a déjà été affiché
+        function shouldShowPopup() {
+            const dismissed = localStorage.getItem('pwa-install-dismissed');
+            const dismissedDate = localStorage.getItem('pwa-install-dismissed-date');
+
+            // Si jamais affiché, montrer
+            if (!dismissed) return true;
+
+            // Si affiché il y a plus de 7 jours, re-montrer
+            if (dismissedDate) {
+                const daysSince = (Date.now() - parseInt(dismissedDate)) / (1000 * 60 * 60 * 24);
+                if (daysSince > 7) return true;
+            }
+
+            return false;
+        }
+
+        // Afficher le popup
+        function showInstallPopup() {
+            const overlay = document.createElement('div');
+            overlay.id = 'pwa-install-popup';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(8px);
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                animation: fadeIn 0.3s ease;
+            `;
+
+            const popup = document.createElement('div');
+            popup.style.cssText = `
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 24px;
+                padding: 2.5rem;
+                max-width: 400px;
+                width: 100%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+                position: relative;
+                animation: slideUp 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+            `;
+
+            popup.innerHTML = `
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideUp {
+                        from { transform: translateY(60px) scale(0.9); opacity: 0; }
+                        to { transform: translateY(0) scale(1); opacity: 1; }
+                    }
+                    @keyframes bounce {
+                        0%, 100% { transform: translateY(0); }
+                        50% { transform: translateY(-10px); }
+                    }
+                    .pwa-logo-container {
+                        animation: bounce 2s ease-in-out infinite;
+                    }
+                </style>
+
+                <div style="text-align: center; margin-bottom: 1.5rem;" class="pwa-logo-container">
+                    <div style="
+                        width: 100px;
+                        height: 100px;
+                        margin: 0 auto 1rem;
+                        background: white;
+                        border-radius: 24px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                    ">
+                        <img src="/images/logo.svg" alt="CloudServe" style="width: 80px; height: 80px;">
+                    </div>
+                </div>
+
+                <h2 style="
+                    color: white;
+                    font-size: 1.75rem;
+                    font-weight: 800;
+                    margin-bottom: 0.75rem;
+                    text-align: center;
+                    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+                ">Installer CloudServe</h2>
+
+                <p style="
+                    color: rgba(255, 255, 255, 0.95);
+                    font-size: 1rem;
+                    line-height: 1.6;
+                    text-align: center;
+                    margin-bottom: 2rem;
+                    font-weight: 500;
+                ">
+                    Accédez rapidement à vos fichiers depuis votre écran d'accueil !
+                    Profitez d'une expérience optimisée pour mobile.
+                </p>
+
+                <div style="
+                    background: rgba(255, 255, 255, 0.15);
+                    border-radius: 16px;
+                    padding: 1.25rem;
+                    margin-bottom: 2rem;
+                    backdrop-filter: blur(10px);
+                ">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="
+                            width: 40px;
+                            height: 40px;
+                            background: rgba(255, 255, 255, 0.25);
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 1.25rem;
+                        ">⚡</div>
+                        <div style="color: white; font-weight: 600;">Accès ultra-rapide</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="
+                            width: 40px;
+                            height: 40px;
+                            background: rgba(255, 255, 255, 0.25);
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 1.25rem;
+                        ">📱</div>
+                        <div style="color: white; font-weight: 600;">Interface optimisée mobile</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="
+                            width: 40px;
+                            height: 40px;
+                            background: rgba(255, 255, 255, 0.25);
+                            border-radius: 12px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 1.25rem;
+                        ">🔔</div>
+                        <div style="color: white; font-weight: 600;">Notifications en temps réel</div>
+                    </div>
+                </div>
+
+                <button id="pwa-install-btn" style="
+                    width: 100%;
+                    padding: 1rem 2rem;
+                    background: white;
+                    color: #667eea;
+                    border: none;
+                    border-radius: 14px;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                    margin-bottom: 1rem;
+                ">
+                    📲 Installer l'application
+                </button>
+
+                <button id="pwa-later-btn" style="
+                    width: 100%;
+                    padding: 0.875rem 2rem;
+                    background: transparent;
+                    color: white;
+                    border: 2px solid rgba(255, 255, 255, 0.5);
+                    border-radius: 14px;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                ">
+                    Plus tard
+                </button>
+            `;
+
+            overlay.appendChild(popup);
+            document.body.appendChild(overlay);
+
+            // Effets hover
+            const installBtn = popup.querySelector('#pwa-install-btn');
+            const laterBtn = popup.querySelector('#pwa-later-btn');
+
+            installBtn.addEventListener('mouseover', () => {
+                installBtn.style.transform = 'translateY(-2px)';
+                installBtn.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.3)';
+            });
+
+            installBtn.addEventListener('mouseout', () => {
+                installBtn.style.transform = 'translateY(0)';
+                installBtn.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.2)';
+            });
+
+            laterBtn.addEventListener('mouseover', () => {
+                laterBtn.style.background = 'rgba(255, 255, 255, 0.15)';
+                laterBtn.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+            });
+
+            laterBtn.addEventListener('mouseout', () => {
+                laterBtn.style.background = 'transparent';
+                laterBtn.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+            });
+
+            // Gestion des événements
+            let deferredPrompt;
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+            });
+
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response: ${outcome}`);
+                    deferredPrompt = null;
+                } else {
+                    // Instructions manuelles pour iOS/Safari
+                    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                        alert('Pour installer l\'application:\n\n1. Appuyez sur le bouton Partager 📤\n2. Sélectionnez "Sur l\'écran d\'accueil"\n3. Appuyez sur "Ajouter"');
+                    } else {
+                        alert('Pour installer l\'application:\n\n1. Ouvrez le menu du navigateur (⋮)\n2. Sélectionnez "Installer l\'application"\n3. Confirmez l\'installation');
+                    }
+                }
+                closePopup();
+            });
+
+            laterBtn.addEventListener('click', () => {
+                localStorage.setItem('pwa-install-dismissed', 'true');
+                localStorage.setItem('pwa-install-dismissed-date', Date.now().toString());
+                closePopup();
+            });
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    localStorage.setItem('pwa-install-dismissed', 'true');
+                    localStorage.setItem('pwa-install-dismissed-date', Date.now().toString());
+                    closePopup();
+                }
+            });
+
+            function closePopup() {
+                overlay.style.animation = 'fadeOut 0.2s ease';
+                popup.style.animation = 'slideDown 0.3s ease';
+
+                const fadeOutKeyframes = document.createElement('style');
+                fadeOutKeyframes.textContent = '@keyframes fadeOut { to { opacity: 0; } } @keyframes slideDown { to { transform: translateY(60px) scale(0.9); opacity: 0; } }';
+                document.head.appendChild(fadeOutKeyframes);
+
+                setTimeout(() => {
+                    if (overlay.parentNode) {
+                        document.body.removeChild(overlay);
+                    }
+                }, 300);
+            }
+        }
+
+        // Attendre que la page soit chargée
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+        function init() {
+            // Attendre 2 secondes après le chargement pour ne pas être intrusif
+            setTimeout(() => {
+                if (isMobileOrTablet() && shouldShowPopup()) {
+                    showInstallPopup();
+                }
+            }, 2000);
+        }
+    })();
+    </script>
 </body>
 </html>

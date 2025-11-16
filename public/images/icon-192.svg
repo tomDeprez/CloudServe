@@ -1,0 +1,36 @@
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="192" height="192" rx="40" fill="url(#cloudGradient)"/>
+
+  <!-- Cloud Shape -->
+  <path d="M 58 105
+           Q 48 105, 48 95
+           Q 48 80, 63 75
+           Q 68 60, 83 60
+           Q 93 50, 108 50
+           Q 123 50, 133 60
+           Q 148 60, 153 75
+           Q 168 80, 168 95
+           Q 168 105, 158 105
+           Z"
+        fill="white"
+        opacity="0.95"
+        stroke="none"/>
+
+  <!-- Upload Arrow -->
+  <g transform="translate(108, 90)">
+    <rect x="-8" y="0" width="16" height="50" rx="4" fill="url(#arrowGradient)"/>
+    <path d="M -24 18 L 0 -18 L 24 18 Z" fill="url(#arrowGradient)"/>
+  </g>
+</svg>

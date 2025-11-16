@@ -1,0 +1,47 @@
+{
+  "name": "CloudServe - Votre espace cloud personnel",
+  "short_name": "CloudServe",
+  "description": "Stockage cloud sécurisé avec partage de fichiers, gestion intelligente et accès depuis n'importe où",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/logo.svg",
+      "sizes": "200x200",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Uploader des fichiers",
+      "short_name": "Upload",
+      "description": "Uploader rapidement des fichiers",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/images/icon-192.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
