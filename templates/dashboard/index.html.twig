@@ -809,6 +809,9 @@
                 <button class="btn btn-primary btn-sm" onclick="document.getElementById('file-input').click()">
                     📁 Choisir fichiers
                 </button>
+                <button class="btn btn-success btn-sm" id="sync-photos-btn" onclick="syncPhotosFromDevice()" style="display: none;">
+                    📸 Sync Photos
+                </button>
             </div>
         </div>
 
@@ -2115,6 +2118,353 @@ document.addEventListener('mouseup', () => {
         popup.style.transition = 'all 0.3s ease';
     }
 });
+
+// ========== PHOTO SYNC FEATURE ==========
+
+// Afficher le bouton sync uniquement sur mobile
+function isMobileDevice() {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+    const isSmallScreen = window.innerWidth <= 768;
+    return isMobile || isSmallScreen;
+}
+
+if (isMobileDevice()) {
+    const syncBtn = document.getElementById('sync-photos-btn');
+    if (syncBtn) {
+        syncBtn.style.display = 'inline-flex';
+    }
+}
+
+// Synchroniser les photos du téléphone
+async function syncPhotosFromDevice() {
+    // Créer un input caché pour sélectionner le dossier
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+
+    // Sur Android/Chrome, permettre la sélection de dossier
+    if ('webkitdirectory' in input) {
+        input.webkitdirectory = true;
+    }
+
+    input.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+
+        if (files.length === 0) {
+            ui.toast('Aucune photo sélectionnée', 'info');
+            return;
+        }
+
+        // Filtrer uniquement les images
+        const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+        if (imageFiles.length === 0) {
+            ui.toast('Aucune image trouvée', 'warning');
+            return;
+        }
+
+        try {
+            await syncPhotosToCloud(imageFiles);
+        } catch (error) {
+            console.error('Erreur sync photos:', error);
+            ui.toast('Erreur lors de la synchronisation: ' + error.message, 'error');
+        }
+    });
+
+    input.click();
+}
+
+// Synchroniser les photos vers le cloud
+async function syncPhotosToCloud(imageFiles) {
+    // Créer une interface de progression
+    const progressOverlay = createPhotoSyncProgress();
+
+    try {
+        // 1. Trouver ou créer le dossier "Images"
+        updateSyncProgress(progressOverlay, 'Préparation...', 5);
+        const imagesFolder = await findOrCreateImagesFolder();
+
+        // 2. Analyser la structure des dossiers
+        updateSyncProgress(progressOverlay, 'Analyse de la structure...', 10);
+        const folderStructure = analyzeFolderStructure(imageFiles);
+
+        // 3. Créer les sous-dossiers si nécessaire
+        updateSyncProgress(progressOverlay, 'Création des dossiers...', 15);
+        const folderMap = await createFolderStructure(imagesFolder.id, folderStructure);
+
+        // 4. Uploader les photos par batch
+        let uploaded = 0;
+        const batchSize = 5; // Uploader 5 photos à la fois
+
+        for (let i = 0; i < imageFiles.length; i += batchSize) {
+            const batch = imageFiles.slice(i, i + batchSize);
+            const progress = 15 + ((uploaded / imageFiles.length) * 80);
+
+            updateSyncProgress(
+                progressOverlay,
+                `Upload en cours... (${uploaded}/${imageFiles.length})`,
+                progress
+            );
+
+            await Promise.all(batch.map(file => uploadPhotoToFolder(file, folderMap)));
+
+            uploaded += batch.length;
+        }
+
+        // 5. Terminé !
+        updateSyncProgress(progressOverlay, 'Synchronisation terminée !', 100);
+
+        setTimeout(() => {
+            progressOverlay.remove();
+            ui.toast(`${imageFiles.length} photo(s) synchronisée(s) avec succès !`, 'success');
+            loadFiles(currentFolder?.id);
+            loadUserData();
+        }, 1500);
+
+    } catch (error) {
+        progressOverlay.remove();
+        throw error;
+    }
+}
+
+// Trouver ou créer le dossier "Images"
+async function findOrCreateImagesFolder() {
+    // Charger tous les fichiers de l'utilisateur
+    const response = await fetch('/files/all-with-paths', {
+        headers: { 'X-Auth-Token': token }
+    });
+
+    if (!response.ok) {
+        throw new Error('Impossible de charger les fichiers');
+    }
+
+    const allFiles = await response.json();
+
+    // Chercher le dossier "Images" à la racine
+    const imagesFolder = allFiles.find(f =>
+        f.type === 'folder' &&
+        f.filename.toLowerCase() === 'images' &&
+        !f.parent
+    );
+
+    if (imagesFolder) {
+        return imagesFolder;
+    }
+
+    // Créer le dossier "Images"
+    const createResponse = await fetch('/files/folder', {
+        method: 'POST',
+        headers: {
+            'X-Auth-Token': token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            name: 'Images'
+        })
+    });
+
+    if (!createResponse.ok) {
+        throw new Error('Impossible de créer le dossier Images');
+    }
+
+    return await createResponse.json();
+}
+
+// Analyser la structure des dossiers depuis les chemins de fichiers
+function analyzeFolderStructure(files) {
+    const folders = new Set();
+
+    files.forEach(file => {
+        // webkitRelativePath contient le chemin complet du fichier
+        if (file.webkitRelativePath) {
+            const parts = file.webkitRelativePath.split('/');
+            // Retirer le nom du fichier et le premier dossier (souvent "DCIM" ou "Pictures")
+            for (let i = 1; i < parts.length - 1; i++) {
+                const folderPath = parts.slice(1, i + 1).join('/');
+                folders.add(folderPath);
+            }
+        }
+    });
+
+    return Array.from(folders).sort();
+}
+
+// Créer la structure de dossiers
+async function createFolderStructure(parentId, folderPaths) {
+    const folderMap = new Map();
+    folderMap.set('', parentId); // La racine est le dossier Images
+
+    // Charger les dossiers existants
+    const response = await fetch('/files/all-with-paths', {
+        headers: { 'X-Auth-Token': token }
+    });
+
+    const allFiles = await response.json();
+    const existingFolders = allFiles.filter(f => f.type === 'folder');
+
+    // Créer les dossiers manquants
+    for (const folderPath of folderPaths) {
+        const parts = folderPath.split('/');
+        let currentPath = '';
+
+        for (const part of parts) {
+            const parentPath = currentPath;
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+            // Vérifier si le dossier existe déjà
+            const parentFolderId = folderMap.get(parentPath);
+            const existing = existingFolders.find(f =>
+                f.filename.toLowerCase() === part.toLowerCase() &&
+                f.parent?.id === parentFolderId
+            );
+
+            if (existing) {
+                folderMap.set(currentPath, existing.id);
+            } else {
+                // Créer le dossier
+                const createResponse = await fetch('/files/folder', {
+                    method: 'POST',
+                    headers: {
+                        'X-Auth-Token': token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: part,
+                        parent_id: parentFolderId
+                    })
+                });
+
+                if (createResponse.ok) {
+                    const newFolder = await createResponse.json();
+                    folderMap.set(currentPath, newFolder.id);
+                } else {
+                    console.error('Erreur création dossier:', part);
+                }
+            }
+        }
+    }
+
+    return folderMap;
+}
+
+// Uploader une photo dans le bon dossier
+async function uploadPhotoToFolder(file, folderMap) {
+    // Déterminer le dossier cible
+    let targetFolderId = folderMap.get(''); // Par défaut: dossier Images
+
+    if (file.webkitRelativePath) {
+        const parts = file.webkitRelativePath.split('/');
+        if (parts.length > 2) {
+            // Construire le chemin du dossier (sans le premier élément et le nom du fichier)
+            const folderPath = parts.slice(1, -1).join('/');
+            const folderId = folderMap.get(folderPath);
+            if (folderId) {
+                targetFolderId = folderId;
+            }
+        }
+    }
+
+    // Uploader le fichier
+    const formData = new FormData();
+    formData.append('files[]', file);
+    if (targetFolderId) {
+        formData.append('parent_id', targetFolderId);
+    }
+
+    const response = await fetch('/files/upload-multiple', {
+        method: 'POST',
+        headers: { 'X-Auth-Token': token },
+        body: formData
+    });
+
+    if (!response.ok) {
+        console.error('Erreur upload:', file.name);
+    }
+
+    return response.ok;
+}
+
+// Créer l'interface de progression pour la sync
+function createPhotoSyncProgress() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(10px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s;
+    `;
+
+    overlay.innerHTML = `
+        <style>
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes rotate { to { transform: rotate(360deg); } }
+            @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        </style>
+        <div style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem 4rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            border: 2px solid rgba(255,255,255,0.2);
+        ">
+            <div style="font-size: 4rem; margin-bottom: 1.5rem; animation: pulse 2s ease-in-out infinite;">📸</div>
+
+            <div style="font-size: 1.75rem; font-weight: 800; color: white; margin-bottom: 1rem; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                Synchronisation Photos
+            </div>
+
+            <div id="sync-status" style="font-size: 1rem; color: rgba(255,255,255,0.9); margin-bottom: 2rem; font-weight: 500;">
+                Initialisation...
+            </div>
+
+            <div style="background: rgba(255,255,255,0.15); padding: 1.5rem; border-radius: 16px; backdrop-filter: blur(10px);">
+                <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; overflow: hidden; margin-bottom: 1rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                    <div id="sync-progress-bar" style="
+                        height: 100%;
+                        background: linear-gradient(90deg, #fff, rgba(255,255,255,0.8), #fff);
+                        background-size: 200% 100%;
+                        width: 0%;
+                        transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+                        animation: shimmer 2s linear infinite;
+                        box-shadow: 0 0 10px rgba(255,255,255,0.5);
+                    "></div>
+                </div>
+                <div id="sync-percentage" style="font-size: 1.5rem; font-weight: 800; color: white;">0%</div>
+            </div>
+        </div>
+    `;
+
+    const shimmerStyle = document.createElement('style');
+    shimmerStyle.textContent = '@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }';
+    document.head.appendChild(shimmerStyle);
+
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+// Mettre à jour la progression
+function updateSyncProgress(overlay, status, percentage) {
+    const statusEl = overlay.querySelector('#sync-status');
+    const progressBar = overlay.querySelector('#sync-progress-bar');
+    const percentageEl = overlay.querySelector('#sync-percentage');
+
+    if (statusEl) statusEl.textContent = status;
+    if (progressBar) progressBar.style.width = percentage + '%';
+    if (percentageEl) percentageEl.textContent = Math.round(percentage) + '%';
+}
 
 </script>
 {% endblock %}
