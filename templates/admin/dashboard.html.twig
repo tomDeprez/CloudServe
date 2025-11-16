@@ -449,11 +449,11 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if 'ROLE_ADMIN' not in user.roles %}
-                                    <div class="action-buttons">
-                                        <button onclick="changeQuota({{ user.id }})" class="btn btn-primary btn-sm">
-                                            💾 Quota
-                                        </button>
+                                <div class="action-buttons">
+                                    <button onclick="changeQuota({{ user.id }})" class="btn btn-primary btn-sm">
+                                        💾 Quota
+                                    </button>
+                                    {% if 'ROLE_ADMIN' not in user.roles %}
                                         {% if user.active %}
                                             <button onclick="suspendUser({{ user.id }})" class="btn btn-warning btn-sm">
                                                 ⏸️ Suspendre
@@ -463,10 +463,8 @@
                                                 ▶️ Activer
                                             </button>
                                         {% endif %}
-                                    </div>
-                                {% else %}
-                                    <span style="color: var(--gray-400); font-size: 0.875rem;">—</span>
-                                {% endif %}
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -519,11 +517,11 @@
                         </div>
                     </div>
 
-                    {% if 'ROLE_ADMIN' not in user.roles %}
-                        <div class="user-card-actions">
-                            <button onclick="changeQuota({{ user.id }})" class="btn btn-primary btn-sm">
-                                💾 Quota
-                            </button>
+                    <div class="user-card-actions">
+                        <button onclick="changeQuota({{ user.id }})" class="btn btn-primary btn-sm">
+                            💾 Quota
+                        </button>
+                        {% if 'ROLE_ADMIN' not in user.roles %}
                             {% if user.active %}
                                 <button onclick="suspendUser({{ user.id }})" class="btn btn-warning btn-sm">
                                     ⏸️ Suspendre
@@ -533,8 +531,8 @@
                                     ▶️ Activer
                                 </button>
                             {% endif %}
-                        </div>
-                    {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
                 {% endfor %}
             </div>
