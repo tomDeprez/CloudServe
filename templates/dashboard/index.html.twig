@@ -248,7 +248,7 @@
 
     @media (max-width: 640px) {
         .files-grid {
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
         }
     }
 
@@ -1043,13 +1043,22 @@ async function loadFiles(folderId = null) {
 
 function renderBreadcrumb() {
     const breadcrumb = document.getElementById('breadcrumb');
-    breadcrumb.innerHTML = '<div class="breadcrumb-item"><a onclick="navigateToFolder(null)">🏠 Racine</a></div>';
 
+    // Si on est dans un dossier, afficher un bouton retour vers le parent
     if (currentFolder) {
-        breadcrumb.innerHTML += `
+        const parentId = currentFolder.parent_id || null;
+        breadcrumb.innerHTML = `
+            <div class="breadcrumb-item">
+                <a onclick="navigateToFolder(${parentId})" style="display: flex; align-items: center; gap: 0.5rem;">
+                    ← Retour
+                </a>
+            </div>
             <div class="breadcrumb-item">›</div>
             <div class="breadcrumb-item">${currentFolder.name}</div>
         `;
+    } else {
+        // À la racine, juste afficher l'icône maison
+        breadcrumb.innerHTML = '<div class="breadcrumb-item">🏠 Racine</div>';
     }
 }
 
