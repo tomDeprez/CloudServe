@@ -141,13 +141,18 @@ class ProcessUploadQueueCommand extends Command
         $upload->setProgress(40);
         $this->entityManager->flush();
 
+        // Hash ORIGINAL (avant compression)
+        $originalHash = $result['hash'];
+        $compressedHash = $originalHash; // Par défaut, identique si pas de compression
+
         // Create File entity
         $file = new File();
         $file->setFilename($upload->getFilename());
         $file->setStoredName($result['storedName']);
         $file->setMimeType($result['mimeType']);
         $file->setSize($result['size']);
-        $file->setHash($result['hash']);
+        $file->setHash($compressedHash);          // Sera mis à jour après compression
+        $file->setOriginalHash($originalHash);     // Hash AVANT compression
         $file->setUploadedAt(new \DateTimeImmutable());
         $file->setUser($upload->getUser());
         $file->setParent($upload->getParentFolder());
@@ -175,6 +180,12 @@ class ProcessUploadQueueCommand extends Command
             $upload->setProgress(80);
             $this->entityManager->flush();
 
+            // Recalculer le hash APRÈS compression
+            if (file_exists($uploadPath)) {
+                $compressedHash = hash_file('sha256', $uploadPath);
+                $file->setHash($compressedHash);
+            }
+
             // Generate thumbnail
             $io->text('  → Generating thumbnail...');
             $thumbnail = $this->thumbnailService->generateThumbnail($result['storedName']);
@@ -193,6 +204,12 @@ class ProcessUploadQueueCommand extends Command
 
             $upload->setProgress(90);
             $this->entityManager->flush();
+
+            // Recalculer le hash APRÈS compression
+            if (file_exists($uploadPath)) {
+                $compressedHash = hash_file('sha256', $uploadPath);
+                $file->setHash($compressedHash);
+            }
         }
 
         // Audio compression
@@ -205,6 +222,12 @@ class ProcessUploadQueueCommand extends Command
 
             $upload->setProgress(90);
             $this->entityManager->flush();
+
+            // Recalculer le hash APRÈS compression
+            if (file_exists($uploadPath)) {
+                $compressedHash = hash_file('sha256', $uploadPath);
+                $file->setHash($compressedHash);
+            }
         }
 
         // Update file size after compression

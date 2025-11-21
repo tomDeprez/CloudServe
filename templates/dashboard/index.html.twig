@@ -842,6 +842,9 @@
                 <button class="btn btn-success btn-sm" onclick="showCreateTextFileModal()">
                     📄+ Nouveau fichier
                 </button>
+                <button class="btn btn-primary btn-sm" onclick="selectAllFiles()" style="margin-left: auto;">
+                    ✓ Sélectionner tous les fichiers
+                </button>
             </div>
         <div class="files-grid" id="files-grid">
             <div class="empty-state">
@@ -1108,7 +1111,7 @@ function renderFiles() {
                     <span>${file.processing ? '⏳ Traitement...' : file.type}</span>
                 </div>
                 <div class="file-actions">
-                    ${!file.isFolder && !file.processing ? `<button class="file-action-btn" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>` : ''}
+                    ${!file.processing ? `<button class="file-action-btn" onclick="event.stopPropagation(); downloadFile(${file.id})">${file.isFolder ? '📦' : '⬇️'}</button>` : ''}
                     <button class="file-action-btn delete" onclick="event.stopPropagation(); deleteFile(${file.id})">🗑️</button>
                 </div>
             </div>
@@ -1153,8 +1156,42 @@ function navigateToFolder(folderId) {
     loadFiles(folderId);
 }
 
-function downloadFile(id) {
-    window.location.href = `/files/${id}/download`;
+async function downloadFile(id) {
+    try {
+        const response = await fetch(`/files/${id}/download`, {
+            method: 'GET',
+            headers: { 'X-Auth-Token': token }
+        });
+
+        if (!response.ok) {
+            throw new Error('Download failed');
+        }
+
+        // Récupérer le nom du fichier depuis le header Content-Disposition
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `file_${id}`;
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (filenameMatch && filenameMatch[1]) {
+                filename = filenameMatch[1].replace(/['"]/g, '');
+            }
+        }
+
+        // Créer un blob et déclencher le téléchargement
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (error) {
+        console.error('Error downloading file:', error);
+        ui.toast('Erreur lors du téléchargement', 'error');
+    }
 }
 
 async function deleteFile(id) {
@@ -1219,6 +1256,29 @@ function clearSelection() {
     renderFiles();
 }
 
+function selectAllFiles() {
+    // Sélectionner tous les fichiers (pas les dossiers) du dossier actuel
+    const currentFolderFiles = allFiles.filter(f => {
+        const isInCurrentFolder = currentFolder
+            ? f.parent_id === currentFolder.id
+            : !f.parent_id;
+        return isInCurrentFolder && !f.isFolder;
+    });
+
+    currentFolderFiles.forEach(file => {
+        selectedFiles.add(file.id);
+    });
+
+    updateMultiActionBar();
+    renderFiles();
+
+    if (currentFolderFiles.length > 0) {
+        ui.toast(`${currentFolderFiles.length} fichier(s) sélectionné(s)`, 'success');
+    } else {
+        ui.toast('Aucun fichier à sélectionner', 'info');
+    }
+}
+
 function updateMultiActionBar() {
     const bar = document.getElementById('multi-action-bar');
     const count = document.getElementById('selected-count');
@@ -1235,14 +1295,71 @@ function updateMultiActionBar() {
 async function downloadSelectedFiles() {
     if (selectedFiles.size === 0) return;
 
-    // Télécharger chaque fichier sélectionné
-    for (const fileId of selectedFiles) {
-        const file = allFiles.find(f => f.id === fileId);
-        if (file && !file.isFolder) {
-            window.open(`/files/${fileId}/download`, '_blank');
-            // Petit délai pour éviter de bloquer le navigateur
-            await new Promise(resolve => setTimeout(resolve, 300));
+    // Filtrer pour séparer fichiers et dossiers
+    const selectedItems = Array.from(selectedFiles).map(id => allFiles.find(f => f.id === id)).filter(f => f);
+    const files = selectedItems.filter(f => !f.isFolder);
+    const folders = selectedItems.filter(f => f.isFolder);
+
+    ui.showLoader(`Téléchargement de ${selectedFiles.size} élément(s)...`, '⬇️');
+
+    try {
+        // Si plusieurs fichiers (sans dossiers), télécharger dans un seul ZIP
+        if (files.length > 1 && folders.length === 0) {
+            const response = await fetch('/files/download-multiple', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Auth-Token': token
+                },
+                body: JSON.stringify({
+                    file_ids: files.map(f => f.id)
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Download failed');
+            }
+
+            // Récupérer le nom du fichier depuis le header Content-Disposition
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'fichiers.zip';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+
+            // Créer un blob et déclencher le téléchargement
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            ui.toast(`${files.length} fichiers téléchargés dans un ZIP`, 'success');
+        } else {
+            // Sinon, télécharger chaque élément individuellement
+            for (const fileId of selectedFiles) {
+                const file = allFiles.find(f => f.id === fileId);
+                if (file) {
+                    await downloadFile(fileId);
+                    // Petit délai pour éviter de bloquer le navigateur
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+            ui.toast(`${selectedFiles.size} élément(s) téléchargé(s)`, 'success');
         }
+    } catch (error) {
+        console.error('Error downloading files:', error);
+        ui.toast('Erreur lors du téléchargement', 'error');
+    } finally {
+        ui.hideLoader();
     }
 }
 

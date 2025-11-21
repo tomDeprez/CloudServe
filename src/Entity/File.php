@@ -48,6 +48,9 @@ class File
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $hash = null; // Hash SHA256 du fichier pour détecter les doublons
 
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $originalHash = null; // Hash SHA256 du fichier AVANT compression
+
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $processing = false; // Indique si le fichier est en cours de traitement (compression, miniatures)
 
@@ -185,6 +188,17 @@ class File
     public function setHash(?string $hash): static
     {
         $this->hash = $hash;
+        return $this;
+    }
+
+    public function getOriginalHash(): ?string
+    {
+        return $this->originalHash;
+    }
+
+    public function setOriginalHash(?string $originalHash): static
+    {
+        $this->originalHash = $originalHash;
         return $this;
     }
 

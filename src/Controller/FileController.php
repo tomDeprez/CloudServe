@@ -108,6 +108,10 @@ class FileController extends AbstractController
                 $uploadPath = $this->getParameter('kernel.project_dir') . '/public/uploads/' . $uploadResult['storedName'];
                 $fileSize = $uploadResult['size'];
 
+                // Hash ORIGINAL (avant compression)
+                $originalHash = $uploadResult['hash'];
+                $compressedHash = $originalHash; // Par défaut, identique si pas de compression
+
                 // Compresser SEULEMENT les images (rapide)
                 // Vidéos et audio : compression désactivée pour éviter les timeouts
                 if ($this->imageCompressionService->isCompressibleImage($uploadResult['mimeType'])) {
@@ -122,6 +126,8 @@ class FileController extends AbstractController
                         // Mettre à jour la taille si compression réussie
                         if ($compressed && file_exists($uploadPath)) {
                             $uploadResult['size'] = filesize($uploadPath);
+                            // Recalculer le hash APRÈS compression
+                            $compressedHash = hash_file('sha256', $uploadPath);
                         }
                     }
                 }
@@ -130,10 +136,19 @@ class FileController extends AbstractController
                 // Si besoin, utiliser une queue async avec un worker PHP
 
                 // PROTECTION : Vérifier si un fichier avec le même hash existe déjà
+                // On vérifie les 2 hash : original ET compressé
                 $existingFile = $this->fileRepository->findOneBy([
                     'user' => $user,
-                    'hash' => $uploadResult['hash']
+                    'hash' => $compressedHash
                 ]);
+
+                if (!$existingFile) {
+                    // Vérifier aussi par originalHash
+                    $existingFile = $this->fileRepository->findOneBy([
+                        'user' => $user,
+                        'originalHash' => $originalHash
+                    ]);
+                }
 
                 if ($existingFile) {
                     // Fichier déjà existant, ne pas le dupliquer
@@ -155,7 +170,8 @@ class FileController extends AbstractController
                 $file->setStoredName($uploadResult['storedName']);
                 $file->setMimeType($uploadResult['mimeType']);
                 $file->setSize((string)$uploadResult['size']);
-                $file->setHash($uploadResult['hash']);
+                $file->setHash($compressedHash);          // Hash APRÈS compression
+                $file->setOriginalHash($originalHash);     // Hash AVANT compression
                 $file->setUser($user);
                 $file->setType('file');
                 if ($parent) {
@@ -260,8 +276,25 @@ class FileController extends AbstractController
             return new JsonResponse(['error' => 'Hash required'], Response::HTTP_BAD_REQUEST);
         }
 
-        // Trouver les fichiers avec le même hash
+        // Trouver les fichiers avec le même hash (compressé OU original)
         $duplicates = $this->fileRepository->findDuplicatesByHash($user, $hash);
+
+        // Vérifier aussi le hash original
+        $duplicatesByOriginal = $this->fileRepository->findBy([
+            'user' => $user,
+            'originalHash' => $hash
+        ]);
+
+        // Fusionner les résultats en évitant les doublons
+        $allDuplicates = [];
+        $seenIds = [];
+
+        foreach (array_merge($duplicates, $duplicatesByOriginal) as $file) {
+            if (!in_array($file->getId(), $seenIds, true)) {
+                $allDuplicates[] = $file;
+                $seenIds[] = $file->getId();
+            }
+        }
 
         $duplicatesData = array_map(function (File $file) {
             return [
@@ -271,10 +304,10 @@ class FileController extends AbstractController
                 'path' => $this->fileRepository->getFilePath($file),
                 'uploadedAt' => $file->getUploadedAt()->format('Y-m-d H:i:s'),
             ];
-        }, $duplicates);
+        }, $allDuplicates);
 
         return new JsonResponse([
-            'hasDuplicates' => count($duplicates) > 0,
+            'hasDuplicates' => count($allDuplicates) > 0,
             'duplicates' => $duplicatesData,
         ]);
     }
@@ -385,6 +418,10 @@ class FileController extends AbstractController
 
         $uploadPath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $uploadResult['storedName'];
 
+        // Hash ORIGINAL (avant compression)
+        $originalHash = $uploadResult['hash'];
+        $compressedHash = $originalHash; // Par défaut, identique si pas de compression
+
         // Compresser l'image si applicable
         if ($this->imageCompressionService->isCompressibleImage($uploadResult['mimeType'])) {
             $compressed = $this->imageCompressionService->compressImage(
@@ -396,6 +433,8 @@ class FileController extends AbstractController
             // Mettre à jour la taille si compression réussie
             if ($compressed && file_exists($uploadPath)) {
                 $uploadResult['size'] = filesize($uploadPath);
+                // Recalculer le hash APRÈS compression
+                $compressedHash = hash_file('sha256', $uploadPath);
             }
         }
 
@@ -408,6 +447,8 @@ class FileController extends AbstractController
                 unlink($uploadPath);
                 rename($tempPath, $uploadPath);
                 $uploadResult['size'] = filesize($uploadPath);
+                // Recalculer le hash APRÈS compression
+                $compressedHash = hash_file('sha256', $uploadPath);
             }
         }
 
@@ -420,6 +461,8 @@ class FileController extends AbstractController
                 unlink($uploadPath);
                 rename($tempPath, $uploadPath);
                 $uploadResult['size'] = filesize($uploadPath);
+                // Recalculer le hash APRÈS compression
+                $compressedHash = hash_file('sha256', $uploadPath);
             }
         }
 
@@ -442,7 +485,8 @@ class FileController extends AbstractController
         $file->setStoredName($uploadResult['storedName']);
         $file->setMimeType($uploadResult['mimeType']);
         $file->setSize((string)$uploadResult['size']);
-        $file->setHash($uploadResult['hash']);
+        $file->setHash($compressedHash);          // Hash APRÈS compression
+        $file->setOriginalHash($originalHash);     // Hash AVANT compression
         $file->setUser($user);
         $file->setType('file');
         if ($parent) {
@@ -556,6 +600,11 @@ class FileController extends AbstractController
         // Vérifier l'accès
         $this->denyAccessUnlessGranted(FileVoter::DOWNLOAD, $file);
 
+        // Si c'est un dossier, créer un ZIP avec tout le contenu
+        if ($file->isFolder()) {
+            return $this->downloadFolderAsZip($file);
+        }
+
         $filePath = $this->fileStorage->getFilePath($file->getStoredName());
 
         if (!$this->fileStorage->exists($file->getStoredName())) {
@@ -571,6 +620,141 @@ class FileController extends AbstractController
         );
 
         return $response;
+    }
+
+    #[Route('/download-multiple', name: 'app_file_download_multiple', methods: ['POST'])]
+    public function downloadMultiple(Request $request): Response
+    {
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $fileIds = $data['file_ids'] ?? [];
+
+        if (empty($fileIds)) {
+            return new JsonResponse(['error' => 'No files specified'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier si l'extension ZIP est disponible
+        if (!class_exists('ZipArchive')) {
+            return new JsonResponse([
+                'error' => 'ZIP extension not available. Please enable php-zip extension.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        // Récupérer les fichiers et vérifier l'accès
+        $files = [];
+        foreach ($fileIds as $fileId) {
+            $file = $this->fileRepository->find($fileId);
+            if ($file && $file->getUser()->getId() === $user->getId() && !$file->isFolder()) {
+                $files[] = $file;
+            }
+        }
+
+        if (empty($files)) {
+            return new JsonResponse(['error' => 'No valid files to download'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Créer le ZIP
+        $zip = new \ZipArchive();
+        $zipFilename = sys_get_temp_dir() . '/' . uniqid('multi_download_') . '.zip';
+
+        if ($zip->open($zipFilename, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return new JsonResponse([
+                'error' => 'Failed to create ZIP file'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        // Ajouter chaque fichier au ZIP
+        foreach ($files as $file) {
+            $filePath = $this->fileStorage->getFilePath($file->getStoredName());
+            if (file_exists($filePath)) {
+                $zip->addFile($filePath, $file->getFilename());
+            }
+        }
+
+        $zip->close();
+
+        // Créer la réponse avec le ZIP
+        $response = new BinaryFileResponse($zipFilename);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            'fichiers_' . date('Y-m-d_His') . '.zip'
+        );
+
+        // Supprimer le fichier temporaire après l'envoi
+        $response->deleteFileAfterSend(true);
+
+        return $response;
+    }
+
+    /**
+     * Télécharge un dossier et tout son contenu en ZIP
+     */
+    private function downloadFolderAsZip(File $folder): Response
+    {
+        // Vérifier si l'extension ZIP est disponible
+        if (!class_exists('ZipArchive')) {
+            return new JsonResponse([
+                'error' => 'ZIP extension not available. Please enable php-zip extension.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $zip = new \ZipArchive();
+        $zipFilename = sys_get_temp_dir() . '/' . uniqid('folder_download_') . '.zip';
+
+        if ($zip->open($zipFilename, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return new JsonResponse([
+                'error' => 'Failed to create ZIP file'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        // Ajouter récursivement tous les fichiers du dossier
+        $this->addFolderToZip($folder, $zip, '');
+
+        $zip->close();
+
+        // Créer la réponse avec le ZIP
+        $response = new BinaryFileResponse($zipFilename);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $folder->getFilename() . '.zip'
+        );
+
+        // Supprimer le fichier temporaire après l'envoi
+        $response->deleteFileAfterSend(true);
+
+        return $response;
+    }
+
+    /**
+     * Ajoute récursivement un dossier et son contenu au ZIP
+     */
+    private function addFolderToZip(File $folder, \ZipArchive $zip, string $parentPath): void
+    {
+        // Récupérer tous les fichiers/dossiers enfants
+        $children = $this->fileRepository->findBy(['parent' => $folder]);
+
+        foreach ($children as $child) {
+            if ($child->isFolder()) {
+                // Créer le dossier dans le ZIP
+                $folderPath = $parentPath . $child->getFilename() . '/';
+                $zip->addEmptyDir($folderPath);
+
+                // Ajouter récursivement le contenu du sous-dossier
+                $this->addFolderToZip($child, $zip, $folderPath);
+            } else {
+                // Ajouter le fichier au ZIP
+                $filePath = $this->fileStorage->getFilePath($child->getStoredName());
+
+                if (file_exists($filePath)) {
+                    $zip->addFile($filePath, $parentPath . $child->getFilename());
+                }
+            }
+        }
     }
 
     #[Route('/{id}', name: 'app_file_delete', methods: ['DELETE'])]
