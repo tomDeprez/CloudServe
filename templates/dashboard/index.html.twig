@@ -1146,6 +1146,10 @@ function openFile(id, type, isFolder) {
     if (isFolder) {
         navigateToFolder(id);
     } else {
+        // Sauvegarder la position de scroll avant de quitter
+        sessionStorage.setItem('dashboardScrollPosition', window.scrollY);
+        sessionStorage.setItem('dashboardFolderId', currentFolder?.id || '');
+
         // Passer le parent_id au viewer pour garder le contexte du dossier
         const parentId = currentFolder?.id || '';
         window.location.href = `/viewer/${id}${parentId ? '?parent_id=' + parentId : ''}`;
@@ -2066,6 +2070,16 @@ if (startParentId) {
     window.history.replaceState({}, '', '/dashboard');
 } else {
     loadFiles();
+}
+
+// Restaurer la position de scroll si on revient du viewer
+const savedScrollPosition = sessionStorage.getItem('dashboardScrollPosition');
+if (savedScrollPosition) {
+    // Attendre que le DOM soit chargé et les fichiers affichés
+    setTimeout(() => {
+        window.scrollTo(0, parseInt(savedScrollPosition));
+        sessionStorage.removeItem('dashboardScrollPosition');
+    }, 100);
 }
 
 initLassoSelection();

@@ -261,12 +261,9 @@ function closeViewer() {
     });
     preloadCache.clear();
 
-    // Retourner au bon dossier
-    if (parentId) {
-        window.location.href = `/dashboard?parent_id=${parentId}`;
-    } else {
-        window.location.href = '/dashboard';
-    }
+    // Retourner à la page précédente (dashboard) sans recharger
+    // Utilise history.back() pour préserver la position de scroll
+    window.history.back();
 }
 
 async function loadFile(id) {
@@ -481,9 +478,10 @@ async function navigateFile(direction) {
         currentIndex = newIndex;
         const newFile = allFiles[currentIndex];
 
-        // Mettre à jour l'URL dans l'historique sans recharger la page
+        // Mettre à jour l'URL SANS créer de nouvelle entrée dans l'historique
+        // Utilise replaceState au lieu de pushState pour éviter d'avoir à cliquer "Fermer" plusieurs fois
         const url = parentId ? `/viewer/${newFile.id}?parent_id=${parentId}` : `/viewer/${newFile.id}`;
-        window.history.pushState({ fileId: newFile.id }, '', url);
+        window.history.replaceState({ fileId: newFile.id }, '', url);
 
         // Charger le nouveau fichier via AJAX
         await loadFileContent(newFile.id);
